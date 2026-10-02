@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="glassShadowB" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="32" stdDeviation="38" flood-color="#000000" flood-opacity="0.18"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.10"/>
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.06"/>
+    </filter>
+
+    <!-- Subtle inner/depth shadow for black pencil on glass -->
+    <filter id="blackPencilShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#734b00" flood-opacity="0.30"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+
+    <linearGradient id="saturatedYellowBaseB" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#FFD000"/>
+      <stop offset="35%" stop-color="#FFC200"/>
+      <stop offset="70%" stop-color="#FFB300"/>
+      <stop offset="100%" stop-color="#FFA000"/>
+    </linearGradient>
+
+    <linearGradient id="frostedGlassSheenB" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.22"/>
+    </linearGradient>
+
+    <linearGradient id="rimGradB" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="25%" stop-color="#ffffff" stop-opacity="0.75"/>
+      <stop offset="65%" stop-color="#ffe57f" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.70"/>
+    </linearGradient>
+
+    <linearGradient id="innerRimB" x1="15%" y1="15%" x2="85%" y2="85%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.70"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffe082" stop-opacity="0.40"/>
+    </linearGradient>
+
+    <linearGradient id="lensSheenB" x1="18%" y1="12%" x2="78%" y2="72%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.60"/>
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <linearGradient id="bottomCausticB" x1="50%" y1="100%" x2="50%" y2="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+
+    <clipPath id="squircleClipB">
+      <rect x="96" y="96" width="832" height="832" rx="192" ry="192"/>
+    </clipPath>
+  </defs>
+
+  <!-- 1. LIQUID GLASS SQUIRCLE FRAME -->
+  <rect x="96" y="96" width="832" height="832" rx="192" ry="192"
+        fill="url(#saturatedYellowBaseB)"
+        filter="url(#glassShadowB)"/>
+
+  <rect x="96" y="96" width="832" height="832" rx="192" ry="192"
+        fill="url(#frostedGlassSheenB)"
+        clip-path="url(#squircleClipB)"/>
+
+  <path d="M 96,320 C 96,195 195,96 320,96 L 750,96 C 520,230 300,470 96,750 Z"
+        fill="url(#lensSheenB)"
+        clip-path="url(#squircleClipB)"/>
+
+  <ellipse cx="512" cy="915" rx="380" ry="120"
+           fill="url(#bottomCausticB)"
+           clip-path="url(#squircleClipB)"/>
+
+  <!-- 2. THE PENCIL ICON (Deep Apple Charcoal Black #1C1C1E) -->
+  <g filter="url(#blackPencilShadow)">
+    <path d="M 353.11,730.29 L 683.06,400.38 L 624.12,341.39 L 294.17,671.25 L 265.80,741.34 C 262.00,751.04 272.07,761.07 281.48,757.70 Z M 712.36,371.66 L 744.89,339.39 C 761.14,323.19 762.00,305.16 746.96,290.27 L 734.78,277.99 C 720.04,262.93 701.80,264.46 685.64,280.29 L 652.99,312.41 Z"
+          fill="#1C1C1E"/>
+  </g>
+
+  <!-- 3. LIQUID GLASS FOREGROUND RIM & REFRACTION (Zero Black Borders) -->
+  <rect x="100" y="100" width="824" height="824" rx="188" ry="188"
+        fill="none"
+        stroke="url(#innerRimB)"
+        stroke-width="3"/>
+
+  <rect x="96" y="96" width="832" height="832" rx="192" ry="192"
+        fill="none"
+        stroke="url(#rimGradB)"
+        stroke-width="3.5"/>
+</svg>

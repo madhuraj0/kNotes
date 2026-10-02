@@ -3,6 +3,8 @@ import SwiftUI
 public struct NotesListView: View {
     @ObservedObject var store: NotesStore
 
+    @Environment(\.colorScheme) private var colorScheme
+
     public init(store: NotesStore) {
         self.store = store
     }
@@ -59,12 +61,11 @@ public struct NotesListView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                List(selection: $store.selectedNoteId) {
+                List {
                     if !pinnedNotes.isEmpty && store.selectedFolder != .pinned {
                         Section(header: Text("PINNED").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
                             ForEach(pinnedNotes) { note in
                                 noteRow(for: note)
-                                    .tag(note.id)
                             }
                         }
                     }
@@ -72,7 +73,6 @@ public struct NotesListView: View {
                     Section(header: Text((!pinnedNotes.isEmpty && store.selectedFolder != .pinned) ? "NOTES" : "").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
                         ForEach(store.selectedFolder == .pinned ? pinnedNotes : regularNotes) { note in
                             noteRow(for: note)
-                                .tag(note.id)
                         }
                     }
                 }
@@ -135,93 +135,105 @@ public struct NotesListView: View {
     private func noteRow(for note: Note) -> some View {
         let isSelected = store.selectedNoteId == note.id
 
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 6) {
-                // Color indicator dot
-                if note.color != "White" {
-                    Circle()
-                        .fill(note.accentTint)
-                        .frame(width: 7, height: 7)
-                        .padding(.top, 4)
-                }
-
-                // Title
-                Text(note.displayTitle)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(isSelected ? .white : .primary)
-                    .lineLimit(1)
-
-                Spacer()
-
-                // Pin indicator
-                if note.pinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(isSelected ? .white.opacity(0.8) : .orange)
-                }
-            }
-
-            // Date, snippet, and checklist icon
-            HStack(spacing: 5) {
-                if note.isList {
-                    Image(systemName: "checklist")
-                        .font(.system(size: 10))
-                        .foregroundColor(isSelected ? .white.opacity(0.85) : .secondary)
-                }
-
-                Text(note.formattedDate)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? .white.opacity(0.85) : .secondary)
-
-                Text("•")
-                    .font(.system(size: 10))
-                    .foregroundColor(isSelected ? .white.opacity(0.6) : .secondary.opacity(0.6))
-
-                Text(note.previewSnippet)
-                    .font(.system(size: 11))
-                    .foregroundColor(isSelected ? .white.opacity(0.75) : .secondary)
-                    .lineLimit(1)
-            }
-
-            // Labels & Collaborators
-            if !note.labels.isEmpty || !note.collaborators.isEmpty {
-                HStack(spacing: 4) {
-                    ForEach(note.labels, id: \.self) { labelName in
-                        HStack(spacing: 2) {
-                            Text("#")
-                                .font(.system(size: 9, weight: .bold))
-                            Text(labelName)
-                                .font(.system(size: 10))
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.12))
-                        .foregroundColor(isSelected ? .white : .secondary)
-                        .cornerRadius(6)
-                    }
-
-                    if !note.collaborators.isEmpty {
-                        HStack(spacing: 2) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 8))
-                            Text("\(note.collaborators.count)")
-                                .font(.system(size: 9, weight: .semibold))
-                        }
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.2) : Color.blue.opacity(0.12))
-                        .foregroundColor(isSelected ? .white : .blue)
-                        .cornerRadius(6)
-                    }
-                }
-                .padding(.top, 2)
-            }
-        }
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
-        .onTapGesture {
+        return Button {
             store.selectedNoteId = note.id
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top, spacing: 6) {
+                    // Color indicator dot
+                    if note.color != "White" {
+                        Circle()
+                            .fill(note.accentTint)
+                            .frame(width: 7, height: 7)
+                            .padding(.top, 4)
+                    }
+
+                    // Title - Always crisp primary contrast in both light and dark mode
+                    Text(note.displayTitle)
+                        .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    // Pin indicator
+                    if note.pinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                    }
+                }
+
+                // Date, snippet, and checklist icon
+                HStack(spacing: 5) {
+                    if note.isList {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 10))
+                            .foregroundColor(isSelected ? .primary.opacity(0.85) : .secondary)
+                    }
+
+                    Text(note.formattedDate)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(isSelected ? .primary.opacity(0.85) : .secondary)
+
+                    Text("•")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.6))
+
+                    Text(note.previewSnippet)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+
+                // Labels & Collaborators
+                if !note.labels.isEmpty || !note.collaborators.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(note.labels, id: \.self) { labelName in
+                            HStack(spacing: 2) {
+                                Text("#")
+                                    .font(.system(size: 9, weight: .bold))
+                                Text(labelName)
+                                    .font(.system(size: 10))
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.12))
+                            .foregroundColor(.secondary)
+                            .cornerRadius(6)
+                        }
+
+                        if !note.collaborators.isEmpty {
+                            HStack(spacing: 2) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 8))
+                                Text("\(note.collaborators.count)")
+                                    .font(.system(size: 9, weight: .semibold))
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.12))
+                            .foregroundColor(.blue)
+                            .cornerRadius(6)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? (colorScheme == .dark ? Color.yellow.opacity(0.24) : Color.yellow.opacity(0.20)) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(isSelected ? (colorScheme == .dark ? Color.yellow.opacity(0.42) : Color.yellow.opacity(0.35)) : Color.clear, lineWidth: 0.8)
+                )
+        )
         .contextMenu {
             Button {
                 store.togglePin(note: note)

@@ -134,102 +134,6 @@ public struct NoteEditorView: View {
                                 )
                                 .padding(.horizontal, 24)
                             } else {
-                                // Prominent Markdown Mode & Formatting Bar
-                                HStack(spacing: 8) {
-                                    Picker("", selection: $isMarkdownPreview) {
-                                        Label("Editor", systemImage: "pencil").tag(false)
-                                        Label("Markdown Preview", systemImage: "eye.fill").tag(true)
-                                    }
-                                    .pickerStyle(.segmented)
-                                    .frame(width: 210)
-
-                                    if !isMarkdownPreview {
-                                        Divider()
-                                            .frame(height: 14)
-
-                                        HStack(spacing: 3) {
-                                            Button {
-                                                insertMarkdown(prefix: "**", suffix: "**")
-                                            } label: {
-                                                Image(systemName: "bold")
-                                                    .font(.system(size: 11, weight: .bold))
-                                                    .frame(width: 20, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Bold (⌘B)")
-
-                                            Button {
-                                                insertMarkdown(prefix: "*", suffix: "*")
-                                            } label: {
-                                                Image(systemName: "italic")
-                                                    .font(.system(size: 11, weight: .semibold))
-                                                    .frame(width: 20, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Italic (⌘I)")
-
-                                            Button {
-                                                insertMarkdown(prefix: "# ")
-                                            } label: {
-                                                Text("H1")
-                                                    .font(.system(size: 11, weight: .bold))
-                                                    .frame(width: 22, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Heading 1")
-
-                                            Button {
-                                                insertMarkdown(prefix: "## ")
-                                            } label: {
-                                                Text("H2")
-                                                    .font(.system(size: 11, weight: .bold))
-                                                    .frame(width: 22, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Heading 2")
-
-                                            Button {
-                                                insertMarkdown(prefix: "- ")
-                                            } label: {
-                                                Image(systemName: "list.bullet")
-                                                    .font(.system(size: 11))
-                                                    .frame(width: 20, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Bullet List")
-
-                                            Button {
-                                                insertMarkdown(prefix: "> ")
-                                            } label: {
-                                                Image(systemName: "quote.opening")
-                                                    .font(.system(size: 11))
-                                                    .frame(width: 20, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Quote Block")
-
-                                            Button {
-                                                insertMarkdown(prefix: "```\n", suffix: "\n```")
-                                            } label: {
-                                                Image(systemName: "curlybraces")
-                                                    .font(.system(size: 11))
-                                                    .frame(width: 20, height: 18)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .help("Code Block")
-                                        }
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(Color.secondary.opacity(0.08))
-                                        .cornerRadius(6)
-                                    }
-
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 24)
-                                .padding(.top, 2)
-                                .padding(.bottom, 2)
-
                                 if isMarkdownPreview {
                                     MarkdownPreviewView(markdownText: noteText, noteColor: note.swiftUIColor)
                                         .frame(minHeight: 400)
@@ -288,16 +192,6 @@ public struct NoteEditorView: View {
         self.noteTitle = note.title
         self.noteText = note.text
         self.noteItems = note.items
-    }
-
-    private func insertMarkdown(prefix: String, suffix: String = "") {
-        if noteText.isEmpty {
-            noteText = "\(prefix)\(suffix)"
-        } else {
-            noteText = "\(noteText)\n\(prefix)\(suffix)"
-        }
-        store.updateSelectedNoteLocally(text: noteText)
-        editorFocus = .body
     }
 
     @ToolbarContentBuilder

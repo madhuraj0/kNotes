@@ -17,6 +17,7 @@ public struct MainView: View {
             NoteEditorView(store: store)
         }
         .navigationSplitViewStyle(.balanced)
+        .accentColor(Color(red: 0.95, green: 0.72, blue: 0.15))
         .frame(minWidth: 800, minHeight: 500)
         .task {
             await store.initialize()
