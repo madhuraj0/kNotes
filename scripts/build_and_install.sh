@@ -22,7 +22,7 @@ echo "--> [2/5] Building Native Swift Release Binary..."
 swift build -c release
 
 # 3. Prepare Application Bundle
-APP_NAME="KNotes.app"
+APP_NAME="kNotes.app"
 APPLICATIONS_DIR="/Applications"
 TARGET_APP="$APPLICATIONS_DIR/$APP_NAME"
 LOCAL_APP="$PROJECT_DIR/$APP_NAME"
@@ -73,7 +73,7 @@ codesign --force --deep --sign - "$LOCAL_APP"
 
 echo ""
 echo "=========================================="
-echo "✓ KNotes successfully installed to: $TARGET_APP"
+echo "✓ kNotes successfully installed to: $TARGET_APP"
 echo "✓ Bundle verification:"
 codesign -v "$TARGET_APP" && echo "  Signature: Valid (Ad-hoc)"
 echo "=========================================="

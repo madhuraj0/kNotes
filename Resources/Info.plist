@@ -13,9 +13,9 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>KNotes</string>
+    <string>kNotes</string>
     <key>CFBundleDisplayName</key>
-    <string>KNotes</string>
+    <string>kNotes</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

@@ -218,6 +218,27 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         }
     }
 
+    public func dynamicBackgroundColor(isDark: Bool) -> Color {
+        if isDark {
+            switch color {
+            case "Red": return Color(red: 0.36, green: 0.14, blue: 0.14)
+            case "Orange": return Color(red: 0.36, green: 0.20, blue: 0.10)
+            case "Yellow": return Color(red: 0.36, green: 0.30, blue: 0.10)
+            case "Green": return Color(red: 0.14, green: 0.30, blue: 0.16)
+            case "Teal": return Color(red: 0.12, green: 0.28, blue: 0.28)
+            case "Blue": return Color(red: 0.14, green: 0.22, blue: 0.36)
+            case "DarkBlue": return Color(red: 0.12, green: 0.16, blue: 0.32)
+            case "Purple": return Color(red: 0.26, green: 0.14, blue: 0.36)
+            case "Pink": return Color(red: 0.36, green: 0.14, blue: 0.26)
+            case "Brown": return Color(red: 0.28, green: 0.20, blue: 0.16)
+            case "Gray": return Color(red: 0.22, green: 0.23, blue: 0.24)
+            default: return Color(NSColor.textBackgroundColor)
+            }
+        } else {
+            return swiftUIColor
+        }
+    }
+
     public var accentTint: Color {
         switch color {
         case "Red": return .red

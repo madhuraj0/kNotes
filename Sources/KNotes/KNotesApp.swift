@@ -1,8 +1,25 @@
 import SwiftUI
 import AppKit
+import CoreSpotlight
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
+        if userActivity.activityType == CSSearchableItemActionType {
+            if let identifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+                let noteId = identifier.replacingOccurrences(of: "knotes.note.", with: "")
+                Task { @MainActor in
+                    NotesStore.shared.selectedNoteId = noteId
+                }
+                return true
+            }
+        }
+        return false
+    }
+}
 
 @main
 struct KNotesApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var store = NotesStore.shared
 
     var body: some Scene {
@@ -11,6 +28,12 @@ struct KNotesApp: App {
                 .environmentObject(store)
                 .onOpenURL { url in
                     handleIncomingURL(url)
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                    if let identifier = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+                        let noteId = identifier.replacingOccurrences(of: "knotes.note.", with: "")
+                        store.selectedNoteId = noteId
+                    }
                 }
         }
         .windowStyle(.titleBar)
@@ -43,14 +66,14 @@ struct KNotesApp: App {
             }
 
             CommandGroup(replacing: .appSettings) {
-                Button("Google Keep Account Settings...") {
+                Button("kNotes Account Settings...") {
                     store.showAccountSheet = true
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
         }
 
-        MenuBarExtra("KNotes", systemImage: "note.text.badge.plus") {
+        MenuBarExtra("kNotes", systemImage: "note.text.badge.plus") {
             MenuBarQuickCaptureView()
         }
         .menuBarExtraStyle(.window)
