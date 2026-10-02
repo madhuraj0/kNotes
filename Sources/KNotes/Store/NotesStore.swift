@@ -105,6 +105,7 @@ public final class NotesStore: ObservableObject {
                 query: searchQuery.isEmpty ? nil : searchQuery
             )
             self.notes = fetched
+            SpotlightIndexer.shared.indexNotes(fetched)
 
             // Keep selected note or select first
             if let selId = selectedNoteId {
@@ -357,6 +358,7 @@ public final class NotesStore: ObservableObject {
             }
 
             do {
+                SpotlightIndexer.shared.deindexNote(id: note.id)
                 try await APIClient.shared.deleteNote(id: note.id)
                 await fetchStatus()
             } catch {

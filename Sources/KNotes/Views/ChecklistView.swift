@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 public struct ChecklistView: View {
     @Binding var items: [ChecklistItem]
@@ -6,6 +7,7 @@ public struct ChecklistView: View {
 
     @State private var newItemText: String = ""
     @State private var showCompleted: Bool = true
+    @State private var draggingItem: ChecklistItem? = nil
     @FocusState private var focusedItemId: String?
 
     public init(items: Binding<[ChecklistItem]>, onUpdate: @escaping () -> Void) {
@@ -22,10 +24,23 @@ public struct ChecklistView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Active items
+        VStack(alignment: .leading, spacing: 4) {
+            // Active items with drag and drop reordering
             ForEach(activeItems) { item in
                 checklistRow(for: item)
+                    .onDrag {
+                        self.draggingItem = item
+                        return NSItemProvider(object: (item.id ?? UUID().uuidString) as NSString)
+                    }
+                    .onDrop(
+                        of: [.text],
+                        delegate: ChecklistDropDelegate(
+                            targetItem: item,
+                            items: $items,
+                            draggingItem: $draggingItem,
+                            onUpdate: onUpdate
+                        )
+                    )
             }
 
             // New item row
@@ -41,7 +56,7 @@ public struct ChecklistView: View {
                         commitNewItem()
                     }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 5)
             .padding(.horizontal, 2)
 
             // Completed items section
@@ -80,6 +95,14 @@ public struct ChecklistView: View {
 
     private func checklistRow(for item: ChecklistItem) -> some View {
         HStack(spacing: 8) {
+            // Drag grip indicator
+            Image(systemName: "circle.grid.2x3.fill")
+                .font(.system(size: 9))
+                .foregroundColor(.secondary.opacity(0.35))
+                .frame(width: 12)
+                .help("Drag to reorder")
+
+            // Checkbox
             Button {
                 toggleCheck(for: item)
             } label: {
@@ -89,6 +112,7 @@ public struct ChecklistView: View {
             }
             .buttonStyle(.plain)
 
+            // Item text field
             TextField(
                 "",
                 text: Binding(
@@ -109,17 +133,20 @@ public struct ChecklistView: View {
 
             Spacer()
 
+            // Delete item button
             Button {
                 deleteItem(item)
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(.secondary.opacity(0.6))
+                    .foregroundColor(.secondary.opacity(0.5))
             }
             .buttonStyle(.plain)
             .help("Delete item")
         }
         .padding(.vertical, 3)
+        .background(draggingItem?.id == item.id ? Color.accentColor.opacity(0.08) : Color.clear)
+        .cornerRadius(6)
     }
 
     private func insertItemAfter(_ item: ChecklistItem) {
@@ -164,5 +191,35 @@ public struct ChecklistView: View {
             focusedItemId = newItem.id
             onUpdate()
         }
+    }
+}
+
+// MARK: - Drag and Drop Reordering Delegate
+struct ChecklistDropDelegate: DropDelegate {
+    let targetItem: ChecklistItem
+    @Binding var items: [ChecklistItem]
+    @Binding var draggingItem: ChecklistItem?
+    var onUpdate: () -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let source = draggingItem, source.id != targetItem.id,
+              let fromIndex = items.firstIndex(where: { $0.id == source.id }),
+              let toIndex = items.firstIndex(where: { $0.id == targetItem.id }) else { return }
+
+        if fromIndex != toIndex {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                items.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+            }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        return DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingItem = nil
+        onUpdate()
+        return true
     }
 }

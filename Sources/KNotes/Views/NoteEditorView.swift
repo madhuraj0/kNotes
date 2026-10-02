@@ -8,6 +8,7 @@ public struct NoteEditorView: View {
     @State private var noteItems: [ChecklistItem] = []
     @State private var showColorPopover: Bool = false
     @State private var showSharePopover: Bool = false
+    @State private var isMarkdownPreview: Bool = false
 
     public init(store: NotesStore) {
         self.store = store
@@ -119,15 +120,20 @@ public struct NoteEditorView: View {
                                 )
                                 .padding(.horizontal, 24)
                             } else {
-                                TextEditor(text: $noteText)
-                                    .font(.system(size: 15))
-                                    .lineSpacing(4)
-                                    .padding(.horizontal, 20)
-                                    .scrollContentBackground(.hidden)
-                                    .frame(minHeight: 400)
-                                    .onChange(of: noteText) { _, newText in
-                                        store.updateSelectedNoteLocally(text: newText)
-                                    }
+                                if isMarkdownPreview {
+                                    MarkdownPreviewView(markdownText: noteText, noteColor: note.swiftUIColor)
+                                        .frame(minHeight: 400)
+                                } else {
+                                    TextEditor(text: $noteText)
+                                        .font(.system(size: 15))
+                                        .lineSpacing(4)
+                                        .padding(.horizontal, 20)
+                                        .scrollContentBackground(.hidden)
+                                        .frame(minHeight: 400)
+                                        .onChange(of: noteText) { _, newText in
+                                            store.updateSelectedNoteLocally(text: newText)
+                                        }
+                                }
                             }
                         }
                         .padding(.bottom, 40)
@@ -238,6 +244,17 @@ public struct NoteEditorView: View {
                         .foregroundColor(note.isList ? .accentColor : .secondary)
                 }
                 .help(note.isList ? "Convert to Plain Text" : "Convert to Checklist")
+
+                // Rich Markdown Preview Toggle (for text notes)
+                if !note.isList {
+                    Button {
+                        isMarkdownPreview.toggle()
+                    } label: {
+                        Image(systemName: isMarkdownPreview ? "pencil" : "eye")
+                            .foregroundColor(isMarkdownPreview ? .accentColor : .secondary)
+                    }
+                    .help(isMarkdownPreview ? "Edit Raw Markdown" : "Rich Markdown Preview")
+                }
 
                 // Tags Menu
                 Menu {

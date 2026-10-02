@@ -47,13 +47,20 @@ fi
 # Bundle backend service
 cp -R backend/app backend/requirements.txt backend/run.py "$TARGET_APP/Contents/Resources/backend/"
 
-# 4. Set up ~/.knotes runtime environment
+# 4. Set up ~/.knotes runtime environment and CLI/Raycast integrations
 echo ""
-echo "--> [4/5] Configuring ~/.knotes runtime environment..."
-mkdir -p ~/.knotes/backend
+echo "--> [4/5] Configuring ~/.knotes runtime and integrations..."
+mkdir -p ~/.knotes/backend ~/.knotes/bin
 cp -R backend/app backend/requirements.txt backend/run.py ~/.knotes/backend/
+cp bin/knotes ~/.knotes/bin/knotes
+chmod +x ~/.knotes/bin/knotes
 ln -sfn "$PROJECT_DIR/.venv" ~/.knotes/venv
 chmod 700 ~/.knotes
+
+# Install Raycast script commands
+mkdir -p ~/.config/raycast/commands
+cp integrations/raycast/*.sh ~/.config/raycast/commands/ 2>/dev/null || true
+chmod +x ~/.config/raycast/commands/knotes-*.sh 2>/dev/null || true
 
 # Duplicate to local project directory
 cp -R "$TARGET_APP" "$LOCAL_APP"

@@ -9,6 +9,9 @@ struct KNotesApp: App {
         WindowGroup {
             MainView()
                 .environmentObject(store)
+                .onOpenURL { url in
+                    handleIncomingURL(url)
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
@@ -45,6 +48,23 @@ struct KNotesApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
+        }
+
+        MenuBarExtra("KNotes", systemImage: "note.text.badge.plus") {
+            MenuBarQuickCaptureView()
+        }
+        .menuBarExtraStyle(.window)
+    }
+
+    private func handleIncomingURL(_ url: URL) {
+        guard url.scheme == "knotes" else { return }
+
+        if url.host == "note", let noteId = url.pathComponents.dropFirst().first {
+            store.selectedNoteId = noteId
+        } else if url.host == "new" {
+            store.createNote(isList: false)
+        } else if url.host == "sync" {
+            store.syncNow()
         }
     }
 }

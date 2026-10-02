@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+# KNotes CLI tool for macOS Terminal, Siri Shortcuts, and Raycast integration
+
+set -eo pipefail
+
+BASE_URL="http://127.0.0.1:8765/api"
+
+usage() {
+    echo "KNotes CLI - Google Keep Backend for macOS"
+    echo ""
+    echo "Usage:"
+    echo "  knotes new <title> [content] [--checklist] [--tag <name>]"
+    echo "  knotes list [folder] (default: all)"
+    echo "  knotes search <query>"
+    echo "  knotes sync"
+    echo "  knotes open [note-id]"
+    echo "  knotes status"
+    echo ""
+    exit 0
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+    status)
+        curl -s "$BASE_URL/status" | python3 -m json.tool
+        ;;
+    sync)
+        echo "Syncing with Google Keep..."
+        res=$(curl -s -X POST "$BASE_URL/sync")
+        echo "$res" | python3 -c "import sys, json; data=json.load(sys.stdin); print('✓ ' + data.get('message', 'Synced'))"
+        ;;
+    list)
+        folder="${2:-all}"
+        curl -s "$BASE_URL/notes?folder=$folder" | python3 -c "
+import sys, json
+notes = json.load(sys.stdin)
+print(f'Total notes: {len(notes)}')
+for n in notes:
+    pin = '📌 ' if n.get('pinned') else '   '
+    title = n.get('title') or '(Untitled)'
+    nid = n.get('id')
+    tags = ' '.join(['#' + t for t in n.get('labels', [])])
+    print(f'{pin}{title} \033[90m[{nid}]\033[0m {tags}')
+"
+        ;;
+    search)
+        query="${2:-}"
+        if [ -z "$query" ]; then
+            echo "Error: Search query required. E.g.: knotes search 'Meeting'"
+            exit 1
+        fi
+        curl -s "$BASE_URL/notes?query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$query'))")" | python3 -c "
+import sys, json
+notes = json.load(sys.stdin)
+print(f'Search results for \"$query\" ({len(notes)} matches):')
+for n in notes:
+    pin = '📌 ' if n.get('pinned') else '• '
+    title = n.get('title') or '(Untitled)'
+    nid = n.get('id')
+    text = (n.get('text') or '').replace('\n', ' ')[:60]
+    print(f'{pin}\033[1m{title}\033[0m: {text} \033[90m(knotes://note/{nid})\033[0m')
+"
+        ;;
+    new)
+        shift
+        title=""
+        content=""
+        is_list=false
+        tag="Quick Notes"
+
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --checklist)
+                    is_list=true
+                    shift
+                    ;;
+                --tag)
+                    tag="$2"
+                    shift 2
+                    ;;
+                *)
+                    if [ -z "$title" ]; then
+                        title="$1"
+                    elif [ -z "$content" ]; then
+                        content="$1"
+                    else
+                        content="$content $1"
+                    fi
+                    shift
+                    ;;
+            esac
+        done
+
+        if [ -z "$title" ]; then
+            echo "Error: Title required. E.g.: knotes new 'Groceries' 'Milk, Bread, Eggs'"
+            exit 1
+        fi
+
+        payload=$(python3 -c "
+import json
+title = '$title'
+content = '$content'
+is_list = '$is_list' == 'true'
+tag = '$tag'
+
+items = []
+if is_list:
+    items = [{'text': line.strip(), 'checked': False} for line in content.split(',') if line.strip()]
+
+data = {
+    'title': title,
+    'text': '' if is_list else content,
+    'is_list': is_list,
+    'items': items,
+    'labels': [tag] if tag else []
+}
+print(json.dumps(data))
+")
+
+        res=$(curl -s -X POST "$BASE_URL/notes" -H "Content-Type: application/json" -d "$payload")
+        echo "$res" | python3 -c "
+import sys, json
+n = json.load(sys.stdin)
+print(f'✓ Created note: \"{n.get(\"title\")}\" [ID: {n.get(\"id\")}]')
+"
+        ;;
+    open)
+        note_id="${2:-}"
+        if [ -n "$note_id" ]; then
+            open "knotes://note/$note_id"
+        else
+            open -a KNotes
+        fi
+        ;;
+    *)
+        usage
+        ;;
+esac
