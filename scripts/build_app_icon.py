@@ -2,10 +2,11 @@ import subprocess
 import os
 import shutil
 
-# Copy the final SVGs into Resources/
-shutil.copy("Resources/icon_concepts/knotes_icon_white_pencil.svg", "Resources/AppIcon_Light.svg")
-shutil.copy("Resources/icon_concepts/knotes_icon_black_pencil.svg", "Resources/AppIcon_Dark.svg")
-shutil.copy("Resources/icon_concepts/knotes_icon_white_pencil.svg", "Resources/AppIcon.svg")
+# Use Resources/AppIcon.svg directly
+if os.path.exists("Resources/icon_concepts/knotes_icon_white_pencil.svg"):
+    shutil.copy("Resources/icon_concepts/knotes_icon_white_pencil.svg", "Resources/AppIcon_Light.svg")
+    shutil.copy("Resources/icon_concepts/knotes_icon_black_pencil.svg", "Resources/AppIcon_Dark.svg")
+    shutil.copy("Resources/icon_concepts/knotes_icon_white_pencil.svg", "Resources/AppIcon.svg")
 
 # Render 1024x1024 PNG from AppIcon.svg
 subprocess.run(["qlmanage", "-t", "-s", "1024", "-o", "Resources", "Resources/AppIcon.svg"], check=True)

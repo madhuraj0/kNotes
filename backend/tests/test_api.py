@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -224,4 +225,29 @@ def test_sync_endpoint():
     assert res.status_code == 200
     res_full = client.post("/api/sync?resync=true")
     assert res_full.status_code == 200
+
+
+def test_non_destructive_backup_and_archive():
+    """Verify state file rotation and trash archive preservation."""
+    # Create note
+    res = client.post("/api/notes", json={"title": "Important Thought", "text": "Must not be lost"})
+    assert res.status_code == 201
+    note_id = res.json()["id"]
+
+    # Delete once (trash)
+    del1 = client.delete(f"/api/notes/{note_id}")
+    assert del1.status_code == 200
+
+    # Delete second time (permanent purge)
+    del2 = client.delete(f"/api/notes/{note_id}")
+    assert del2.status_code == 200
+
+    # Verify backup archive exists in trash_archive
+    archive_dir = config.DATA_DIR / "trash_archive"
+    archive_file = archive_dir / f"{note_id}.json"
+    assert archive_file.exists()
+    with open(archive_file) as f:
+        archived_data = json.load(f)
+    assert archived_data["title"] == "Important Thought"
+
 

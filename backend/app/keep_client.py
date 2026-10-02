@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import threading
 import urllib.request
 import uuid
@@ -183,16 +184,21 @@ class KeepManager:
 
                 self.email = email
                 self.master_token = master_token
-                # Authenticate and sync with Google Keep
+                # Authenticate and sync with Google Keep non-destructively
                 try:
                     node_count = len(list(self.keep.all()))
-                    # If we only have sample notes (< 30 nodes) or no local cache, perform full sync
+                    # If we already have a healthy cache (> 30 nodes), incremental sync is fast and safe
                     if has_local_cache and node_count > 30:
                         state = self.keep.dump()
                         self.keep.authenticate(email, master_token, state=state, sync=True)
                     else:
-                        self.keep = gkeepapi.Keep()
-                        self.keep.authenticate(email, master_token, state=None, sync=True)
+                        # Full sync staged safely into a separate instance first
+                        staging_keep = gkeepapi.Keep()
+                        staging_keep.authenticate(email, master_token, state=None, sync=True)
+                        staged_nodes = list(staging_keep.all())
+                        if len(staged_nodes) > 0:
+                            self._merge_offline_notes(self.keep, staging_keep)
+                            self.keep = staging_keep
                     self.authenticated = True
                     self.sync_status = "synced"
                     self.last_synced = datetime.now(timezone.utc).isoformat()
@@ -205,11 +211,94 @@ class KeepManager:
         except Exception as e:
             logger.warning("Error reading session file: %s", e)
 
+    def _archive_deleted_note(self, node: TopLevelNode) -> None:
+        """Archive a permanently deleted note to local disk before purging."""
+        try:
+            archive_dir = config.DATA_DIR / "trash_archive"
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                os.chmod(archive_dir, 0o700)
+            except OSError:
+                pass
+            note_dict = self._node_to_response(node).model_dump()
+            note_dict["archived_at"] = datetime.now(timezone.utc).isoformat()
+            archive_file = archive_dir / f"{node.id}.json"
+            with open(archive_file, "w", encoding="utf-8") as f:
+                json.dump(note_dict, f, indent=2)
+            try:
+                os.chmod(archive_file, 0o600)
+            except OSError:
+                pass
+            logger.info("Archived permanently deleted note %s to %s", node.id, archive_file)
+        except Exception as e:
+            logger.warning("Failed to write trash archive for note %s: %s", node.id, e)
+
+    def _merge_offline_notes(self, source_keep: gkeepapi.Keep, target_keep: gkeepapi.Keep) -> None:
+        """Merge user-created offline notes from local keep into authenticated cloud keep."""
+        sample_titles = {"Welcome to kNotes", "Quick Start Checklist 📋", "Project Ideas 💡"}
+        try:
+            target_ids = {n.id for n in target_keep.all()}
+            for node in source_keep.all():
+                if node.title in sample_titles and not node.dirty:
+                    continue
+                if node.id not in target_ids:
+                    logger.info("Preserving and migrating offline note '%s' to cloud Keep", node.title)
+                    if isinstance(node, KeepList):
+                        items = [(item.text, item.checked) for item in node.items]
+                        new_note = target_keep.createList(node.title, items)
+                    else:
+                        new_note = target_keep.createNote(node.title, node.text)
+                    new_note.pinned = node.pinned
+                    new_note.color = node.color
+                    new_note.archived = node.archived
+                    for lbl in node.labels.all():
+                        target_lbl = target_keep.findLabel(lbl.name) or target_keep.createLabel(lbl.name)
+                        new_note.labels.add(target_lbl)
+        except Exception as e:
+            logger.warning("Failed to merge offline notes into cloud session: %s", e)
+
     def _save_state_to_disk(self) -> None:
-        """Serialize current keep state to disk with 0600 permissions."""
+        """Serialize current keep state to disk with 0600 permissions and maintain rotating backups."""
         with self.lock:
             try:
                 state = self.keep.dump()
+                nodes = state.get("nodes", [])
+
+                # Maintain rotating safety backups in ~/.knotes/backups/
+                if config.STATE_FILE.exists():
+                    backup_dir = config.DATA_DIR / "backups"
+                    backup_dir.mkdir(parents=True, exist_ok=True)
+                    try:
+                        os.chmod(backup_dir, 0o700)
+                    except OSError:
+                        pass
+
+                    if config.STATE_FILE.stat().st_size > 50:
+                        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+                        backup_file = backup_dir / f"state_backup_{ts}.json"
+                        try:
+                            if len(nodes) > 0:
+                                shutil.copy2(config.STATE_FILE, backup_file)
+                                os.chmod(backup_file, 0o600)
+
+                            all_backups = sorted(backup_dir.glob("state_backup_*.json"), key=os.path.getmtime)
+                            while len(all_backups) > 10:
+                                oldest = all_backups.pop(0)
+                                oldest.unlink(missing_ok=True)
+                        except Exception as b_err:
+                            logger.warning("Backup rotation notice: %s", b_err)
+
+                # Guard: refuse to overwrite a populated state file with 0 nodes
+                if len(nodes) == 0 and config.STATE_FILE.exists():
+                    try:
+                        with open(config.STATE_FILE, "r", encoding="utf-8") as f:
+                            prev = json.load(f)
+                        if len(prev.get("nodes", [])) > 0:
+                            logger.error("Refusing to overwrite populated state with empty nodes; preserving existing cache")
+                            return
+                    except Exception:
+                        pass
+
                 tmp_file = config.STATE_FILE.with_suffix(".tmp")
                 with open(tmp_file, "w", encoding="utf-8") as f:
                     json.dump(state, f)
@@ -277,19 +366,23 @@ class KeepManager:
                         if resolved:
                             clean_email = resolved
 
-                    # Start with a clean Keep instance to force downloading all notes from Google Keep cloud
-                    self.keep = gkeepapi.Keep()
-                    self.keep.authenticate(clean_email, token_to_use, state=None, sync=True)
+                    # Non-destructive staging: authenticate in a separate staging instance first
+                    staging_keep = gkeepapi.Keep()
+                    staging_keep.authenticate(clean_email, token_to_use, state=None, sync=True)
+                    self._merge_offline_notes(self.keep, staging_keep)
+                    self.keep = staging_keep
                     token = token_to_use
                 elif password:
                     clean_pw = password.strip().replace(" ", "")
                     try:
-                        self.keep = gkeepapi.Keep()
-                        self.keep.login(clean_email, clean_pw, state=None, sync=True)
-                        token = self.keep.getMasterToken()
+                        staging_keep = gkeepapi.Keep()
+                        staging_keep.login(clean_email, clean_pw, state=None, sync=True)
+                        token = staging_keep.getMasterToken()
                         resolved = _fetch_account_email(token, clean_email)
                         if resolved:
                             clean_email = resolved
+                        self._merge_offline_notes(self.keep, staging_keep)
+                        self.keep = staging_keep
                     except gkeepapi.exception.LoginException as le:
                         if "BadAuthentication" in str(le):
                             return False, (
@@ -330,14 +423,29 @@ class KeepManager:
             self._save_state_to_disk()
 
     def sync(self, resync: bool = False) -> Tuple[bool, str]:
-        """Trigger sync with Google Keep."""
+        """Trigger sync with Google Keep safely and non-destructively."""
         with self.lock:
             if not self.authenticated:
                 return True, "Working in local mode (not connected to Google Keep)."
 
             self.sync_status = "syncing"
             try:
-                self.keep.sync(resync=resync)
+                if resync:
+                    staging_keep = gkeepapi.Keep()
+                    staging_keep.authenticate(self.email, self.master_token, state=None, sync=True)
+
+                    staged_count = len(list(staging_keep.all()))
+                    current_count = len(list(self.keep.all()))
+                    if staged_count == 0 and current_count > 0:
+                        logger.warning("Resync returned 0 notes while current cache has %d notes; preserving current cache", current_count)
+                        self.sync_status = "synced"
+                        return True, "Resync verified: preserved existing notes."
+
+                    self._merge_offline_notes(self.keep, staging_keep)
+                    self.keep = staging_keep
+                else:
+                    self.keep.sync(resync=False)
+
                 self.sync_status = "synced"
                 self.last_synced = datetime.now(timezone.utc).isoformat()
                 self._save_state_to_disk()
@@ -643,6 +751,7 @@ class KeepManager:
                 return False
 
             if node.trashed:
+                self._archive_deleted_note(node)
                 node.delete()
             else:
                 node.trash()

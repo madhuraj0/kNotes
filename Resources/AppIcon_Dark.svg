@@ -77,14 +77,4 @@
           fill="#1C1C1E"/>
   </g>
 
-  <!-- 3. LIQUID GLASS FOREGROUND RIM & REFRACTION (Zero Black Borders) -->
-  <rect x="100" y="100" width="824" height="824" rx="188" ry="188"
-        fill="none"
-        stroke="url(#innerRimB)"
-        stroke-width="3"/>
-
-  <rect x="96" y="96" width="832" height="832" rx="192" ry="192"
-        fill="none"
-        stroke="url(#rimGradB)"
-        stroke-width="3.5"/>
 </svg>
