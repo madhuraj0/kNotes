@@ -198,14 +198,34 @@ class KeepManager:
             try:
                 state = self.keep.dump()
                 clean_email = email.strip()
-                if master_token:
-                    clean_token = master_token.strip()
-                    self.keep.authenticate(clean_email, clean_token, state=state, sync=True)
-                    token = clean_token
+                token_to_use = master_token.strip() if master_token else None
+                if not token_to_use and password and (password.startswith("oauth2_4/") or password.startswith("oauth2rt_") or password.startswith("aas_et/")):
+                    token_to_use = password.strip()
+
+                if token_to_use:
+                    if token_to_use.startswith("oauth2_4/"):
+                        import gpsoauth, uuid
+                        device_id = f"{uuid.getnode():x}"
+                        exchange_res = gpsoauth.exchange_token(clean_email, token_to_use, device_id)
+                        if "Token" not in exchange_res:
+                            err = exchange_res.get("Error", "Unknown exchange error")
+                            return False, f"OAuth Token exchange failed: {err}. Please ensure you copied the complete oauth_token cookie."
+                        token_to_use = exchange_res["Token"]
+
+                    self.keep.authenticate(clean_email, token_to_use, state=state, sync=True)
+                    token = token_to_use
                 elif password:
                     clean_pw = password.strip().replace(" ", "")
-                    self.keep.login(clean_email, clean_pw, state=state, sync=True)
-                    token = self.keep.getMasterToken()
+                    try:
+                        self.keep.login(clean_email, clean_pw, state=state, sync=True)
+                        token = self.keep.getMasterToken()
+                    except gkeepapi.exception.LoginException as le:
+                        if "BadAuthentication" in str(le):
+                            return False, (
+                                "Google has discontinued password and App Password authentication for the unofficial Keep API. "
+                                "Please use the 'Google Master Token' method instead (click 'Use Master Token' in KNotes or run scripts/get_master_token.py)."
+                            )
+                        raise
                 else:
                     return False, "Password or master token is required."
 
