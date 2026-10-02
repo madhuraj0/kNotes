@@ -21,12 +21,6 @@ public struct NotesListView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Top Account & Sync Bar (Moved to top of notes list as requested)
-            accountStatusBar
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
-                .padding(.bottom, 6)
-
             // Folder Title & Note Count Header
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -39,31 +33,10 @@ public struct NotesListView: View {
                 }
 
                 Spacer()
-
-                HStack(spacing: 6) {
-                    Button {
-                        store.createNote(isList: true)
-                    } label: {
-                        Image(systemName: "checklist")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("New Checklist (⇧⌘N)")
-
-                    Button {
-                        store.createNote(isList: false)
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("New Note (⌘N)")
-                }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
 
             Divider()
 
@@ -107,10 +80,15 @@ public struct NotesListView: View {
             }
         }
         .frame(minWidth: 240, idealWidth: 280)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                accountTopBarItem
+            }
+        }
     }
 
-    // MARK: - Account Status Bar
-    private var accountStatusBar: some View {
+    // MARK: - Account TopBar Item
+    private var accountTopBarItem: some View {
         HStack(spacing: 8) {
             Button {
                 store.showAccountSheet = true
@@ -118,7 +96,7 @@ public struct NotesListView: View {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(store.status?.authenticated == true ? Color.green : Color.orange)
-                        .frame(width: 8, height: 8)
+                        .frame(width: 7, height: 7)
 
                     Text(store.status?.authenticated == true ? (store.status?.email ?? "Google Keep") : "Local Mode")
                         .font(.system(size: 11, weight: .semibold))
@@ -126,24 +104,25 @@ public struct NotesListView: View {
                         .lineLimit(1)
 
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundColor(.secondary.opacity(0.6))
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 9)
                 .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.08))
-                .cornerRadius(12)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                )
             }
             .buttonStyle(.plain)
             .help("Google Keep Account Settings (⌘,)")
-
-            Spacer()
 
             Button {
                 store.syncNow()
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .rotationEffect(.degrees(store.isSyncing ? 360 : 0))
                     .animation(store.isSyncing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isSyncing)

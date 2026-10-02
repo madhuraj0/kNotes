@@ -160,6 +160,9 @@ public struct NoteEditorView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.background)
+                .toolbar {
+                    editorToolbar(for: nil)
+                }
             }
         }
     }
@@ -171,124 +174,145 @@ public struct NoteEditorView: View {
     }
 
     @ToolbarContentBuilder
-    private func editorToolbar(for note: Note) -> some ToolbarContent {
-        // Principal: Color Palette moved to the middle of the top bar
-        ToolbarItem(placement: .principal) {
-            Button {
-                showColorPopover.toggle()
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "paintpalette.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(note.accentTint)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
-            }
-            .buttonStyle(.plain)
-            .help("Note Color")
-            .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
-                ColorPalettePickerView(selectedColor: note.color) { newColor in
-                    store.changeColor(note: note, color: newColor)
-                    showColorPopover = false
-                }
-            }
-        }
-
-        // Primary actions on the right side of toolbar
-        ToolbarItemGroup(placement: .primaryAction) {
-            // Toggle Checklist / Text Mode
-            Button {
-                store.toggleNoteType(note: note)
-            } label: {
-                Image(systemName: note.isList ? "checklist.checked" : "checklist")
-                    .foregroundColor(note.isList ? .accentColor : .secondary)
-            }
-            .help(note.isList ? "Convert to Text Note" : "Convert to Checklist")
-
-            // Tags Menu
-            Menu {
-                ForEach(store.labels) { label in
-                    Button {
-                        store.toggleLabel(note: note, labelName: label.name)
-                    } label: {
-                        HStack {
-                            Text(label.name)
-                            if note.labels.contains(label.name) {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
-                Divider()
-                Button("New Tag...") {
-                    store.showNewLabelSheet = true
-                }
-            } label: {
-                Image(systemName: "tag")
-            }
-            .help("Tags")
-
-            // Share / Collaborators Popover
-            Button {
-                showSharePopover.toggle()
-            } label: {
-                Image(systemName: note.collaborators.isEmpty ? "person.crop.circle.badge.plus" : "person.2.fill")
-                    .foregroundColor(!note.collaborators.isEmpty ? .accentColor : .secondary)
-            }
-            .help("Share / Collaborators")
-            .popover(isPresented: $showSharePopover, arrowEdge: .bottom) {
-                CollaboratorsPopoverView(note: note, store: store, isPresented: $showSharePopover)
-            }
-
-            // Archive / Unarchive
-            Button {
-                store.toggleArchive(note: note)
-            } label: {
-                Image(systemName: note.archived ? "archivebox.fill" : "archivebox")
-                    .foregroundColor(note.archived ? .accentColor : .secondary)
-            }
-            .help(note.archived ? "Unarchive Note" : "Archive Note")
-
-            // Pin / Unpin
-            Button {
-                store.togglePin(note: note)
-            } label: {
-                Image(systemName: note.pinned ? "pin.fill" : "pin")
-                    .foregroundColor(note.pinned ? .orange : .secondary)
-            }
-            .help(note.pinned ? "Unpin Note" : "Pin Note")
-
-            // Delete Note
-            Button {
-                store.deleteNote(note: note)
-            } label: {
-                Image(systemName: "trash")
-            }
-            .help("Delete Note (⌘⌫)")
-
-            // Manual Sync Button
-            Button {
-                store.syncNow()
-            } label: {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .rotationEffect(.degrees(store.isSyncing ? 360 : 0))
-                    .animation(store.isSyncing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isSyncing)
-            }
-            .help("Sync with Google Keep (⌘S)")
-
-            // New Note Button
+    private func editorToolbar(for note: Note?) -> some ToolbarContent {
+        // 1. Left-aligned above the editor line (placement: .navigation)
+        ToolbarItemGroup(placement: .navigation) {
             Button {
                 store.createNote(isList: false)
             } label: {
                 Image(systemName: "square.and.pencil")
+                    .font(.system(size: 13, weight: .medium))
             }
             .help("New Note (⌘N)")
+
+            Button {
+                store.createNote(isList: true)
+            } label: {
+                Image(systemName: "checklist")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .help("New Checklist (⇧⌘N)")
+        }
+
+        // 2. Principal: Color Palette in the middle of the top bar
+        ToolbarItem(placement: .principal) {
+            if let note = note {
+                Button {
+                    showColorPopover.toggle()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "paintpalette.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(note.accentTint)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Note Color")
+                .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
+                    ColorPalettePickerView(selectedColor: note.color) { newColor in
+                        store.changeColor(note: note, color: newColor)
+                        showColorPopover = false
+                    }
+                }
+            }
+        }
+
+        // 3. Right side / Primary actions of toolbar
+        ToolbarItemGroup(placement: .primaryAction) {
+            if let note = note {
+                // Toggle Checklist / Text Mode
+                Button {
+                    store.toggleNoteType(note: note)
+                } label: {
+                    Image(systemName: note.isList ? "text.alignleft" : "checklist")
+                        .foregroundColor(note.isList ? .accentColor : .secondary)
+                }
+                .help(note.isList ? "Convert to Plain Text" : "Convert to Checklist")
+
+                // Tags Menu
+                Menu {
+                    ForEach(store.labels) { label in
+                        Button {
+                            store.toggleLabel(note: note, labelName: label.name)
+                        } label: {
+                            HStack {
+                                Text(label.name)
+                                if note.labels.contains(label.name) {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("New Tag...") {
+                        store.showNewLabelSheet = true
+                    }
+                } label: {
+                    Image(systemName: "tag")
+                }
+                .help("Tags")
+
+                // Google Keep Collaborators Popover
+                Button {
+                    showSharePopover.toggle()
+                } label: {
+                    Image(systemName: note.collaborators.isEmpty ? "person.crop.circle.badge.plus" : "person.2.fill")
+                        .foregroundColor(!note.collaborators.isEmpty ? .accentColor : .secondary)
+                }
+                .help("Google Keep Collaborators")
+                .popover(isPresented: $showSharePopover, arrowEdge: .bottom) {
+                    CollaboratorsPopoverView(note: note, store: store, isPresented: $showSharePopover)
+                }
+
+                // Native macOS Share Sheet
+                ShareLink(
+                    item: note.shareText,
+                    subject: Text(note.displayTitle),
+                    message: Text(note.previewSnippet)
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .help("Share Note (macOS Share Sheet)")
+
+                // Archive / Unarchive
+                Button {
+                    store.toggleArchive(note: note)
+                } label: {
+                    Image(systemName: note.archived ? "archivebox.fill" : "archivebox")
+                        .foregroundColor(note.archived ? .accentColor : .secondary)
+                }
+                .help(note.archived ? "Unarchive Note" : "Archive Note")
+
+                // Pin / Unpin
+                Button {
+                    store.togglePin(note: note)
+                } label: {
+                    Image(systemName: note.pinned ? "pin.fill" : "pin")
+                        .foregroundColor(note.pinned ? .orange : .secondary)
+                }
+                .help(note.pinned ? "Unpin Note" : "Pin Note")
+
+                // Delete Note
+                Button {
+                    store.deleteNote(note: note)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .help("Delete Note (⌘⌫)")
+            }
+
+            // Continuously Expanded Liquid Glass Search Bar
+            LiquidGlassSearchBar(text: $store.searchQuery)
         }
     }
 }

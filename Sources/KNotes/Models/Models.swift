@@ -126,6 +126,22 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         return "No additional text"
     }
 
+    public var shareText: String {
+        var content = ""
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedTitle.isEmpty {
+            content += "\(trimmedTitle)\n\n"
+        }
+        if isList {
+            for item in items {
+                content += "\(item.checked ? "[x]" : "[ ]") \(item.text)\n"
+            }
+        } else {
+            content += text
+        }
+        return content
+    }
+
     public var formattedDate: String {
         guard let dateString = updated ?? created else {
             return "Just now"

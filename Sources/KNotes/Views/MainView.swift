@@ -18,7 +18,6 @@ public struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 800, minHeight: 500)
-        .searchable(text: $store.searchQuery, placement: .toolbar, prompt: "Search all notes...")
         .task {
             await store.initialize()
         }
