@@ -54,6 +54,8 @@ mkdir -p ~/.knotes/backend ~/.knotes/bin
 cp -R backend/app backend/requirements.txt backend/run.py ~/.knotes/backend/
 cp bin/knotes ~/.knotes/bin/knotes
 chmod +x ~/.knotes/bin/knotes
+cp scripts/get_master_token.py ~/.knotes/bin/get_master_token.py
+chmod +x ~/.knotes/bin/get_master_token.py
 ln -sfn "$PROJECT_DIR/.venv" ~/.knotes/venv
 chmod 700 ~/.knotes
 

@@ -325,7 +325,7 @@ public struct AccountSheetView: View {
     // MARK: - Actions
     private func handleCapturedToken(token: String, email: String?) {
         isConnecting = true
-        let resolvedEmail = email ?? (manualEmail.isEmpty ? "Google User" : manualEmail)
+        let resolvedEmail = email ?? manualEmail
 
         Task {
             let (success, message) = await store.login(
@@ -353,7 +353,7 @@ public struct AccountSheetView: View {
 
         Task {
             let (success, message) = await store.login(
-                email: cleanEmail.isEmpty ? "Google Account" : cleanEmail,
+                email: cleanEmail,
                 masterToken: cleanToken
             )
             isConnecting = false
@@ -366,11 +366,14 @@ public struct AccountSheetView: View {
     }
 
     private func runCLIScriptInTerminal() {
-        let scriptPath = "/Users/madhuraj/Downloads/code/KNotes/scripts/get_master_token.py"
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let installedScript = "\(home)/.knotes/bin/get_master_token.py"
+        let fallbackScript = "\(FileManager.default.currentDirectoryPath)/scripts/get_master_token.py"
+        let scriptPath = FileManager.default.fileExists(atPath: installedScript) ? installedScript : fallbackScript
         let appleScript = """
         tell application "Terminal"
             activate
-            do script "\(scriptPath)"
+            do script "python3 \\\"\(scriptPath)\\\""
         end tell
         """
         if let scriptObject = NSAppleScript(source: appleScript) {

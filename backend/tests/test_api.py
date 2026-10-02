@@ -207,3 +207,21 @@ def test_collaborators():
     assert patch_res.status_code == 200
     assert "bob@gmail.com" in patch_res.json()["collaborators"]
 
+
+def test_logout_and_clean_state():
+    """Verify logging out clears session and reverts to clean sample notes."""
+    res = client.post("/api/auth/logout")
+    assert res.status_code == 200
+    status_res = client.get("/api/status")
+    assert status_res.status_code == 200
+    assert status_res.json()["authenticated"] is False
+    assert status_res.json()["email"] is None
+
+
+def test_sync_endpoint():
+    """Verify manual sync and resync endpoint."""
+    res = client.post("/api/sync?resync=false")
+    assert res.status_code == 200
+    res_full = client.post("/api/sync?resync=true")
+    assert res_full.status_code == 200
+

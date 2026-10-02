@@ -76,9 +76,9 @@ def logout():
 
 
 @app.post("/api/sync")
-def trigger_sync():
+def trigger_sync(resync: bool = Query(False, description="Force full re-sync from server")):
     """Manually trigger synchronization with Google Keep."""
-    success, message = manager.sync()
+    success, message = manager.sync(resync=resync)
     if not success:
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

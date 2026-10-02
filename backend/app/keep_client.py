@@ -3,12 +3,15 @@ import logging
 import os
 import re
 import threading
+import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import gkeepapi
 from gkeepapi.node import ColorValue, List as KeepList, Note as KeepNote, TopLevelNode
+import gpsoauth
 
 from app import config
 from app.models import ChecklistItem, NoteCreateRequest, NoteResponse, NoteUpdateRequest, StatusResponse
@@ -31,6 +34,34 @@ COLOR_MAP: Dict[str, ColorValue] = {
 }
 
 REVERSE_COLOR_MAP: Dict[ColorValue, str] = {v: k for k, v in COLOR_MAP.items()}
+
+
+def _fetch_account_email(master_token: str, fallback_email: Optional[str] = None) -> Optional[str]:
+    """Resolve the verified Google email associated with this master token."""
+    try:
+        device_id = f"{uuid.getnode():x}"
+        auth_resp = gpsoauth.perform_oauth(
+            fallback_email or "android@gmail.com",
+            master_token,
+            device_id,
+            service="oauth2:https://www.googleapis.com/auth/userinfo.email",
+            app="com.google.android.gms",
+            client_sig="38918a453d07199354f8b19af05ec6562ced5788",
+        )
+        access_token = auth_resp.get("Auth")
+        if access_token:
+            req = urllib.request.Request(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                info = json.loads(resp.read().decode())
+                resolved = info.get("email")
+                if resolved and "@" in resolved:
+                    return resolved.strip()
+    except Exception as e:
+        logger.warning("Failed to resolve email via Google userinfo: %s", e)
+    return None
 
 
 class KeepManager:
@@ -83,7 +114,7 @@ class KeepManager:
             self._save_state_to_disk()
 
         # 3. Attempt to resume existing session if session.json exists
-        self._attempt_auto_resume()
+        self._attempt_auto_resume(has_local_cache)
 
     def _seed_welcome_notes(self) -> None:
         """Seed rich welcome notes."""
@@ -130,7 +161,7 @@ class KeepManager:
         ideas_note.color = ColorValue.Purple
         ideas_note.labels.add(lbl_work)
 
-    def _attempt_auto_resume(self) -> None:
+    def _attempt_auto_resume(self, has_local_cache: bool = False) -> None:
         """Attempt to restore authentication session from disk."""
         if not config.SESSION_FILE.exists():
             return
@@ -143,17 +174,30 @@ class KeepManager:
             master_token = session_data.get("master_token")
 
             if email and master_token:
+                # If email is placeholder or missing, resolve verified email from Google
+                if not email or "@" not in email or email.strip().lower() in ("google user", "google account"):
+                    resolved = _fetch_account_email(master_token, email)
+                    if resolved:
+                        email = resolved
+                        self._save_session(email, master_token)
+
                 self.email = email
                 self.master_token = master_token
-                # Try authenticating in background or mark authenticated
+                # Authenticate and sync with Google Keep
                 try:
-                    state = self.keep.dump()
-                    self.keep.authenticate(email, master_token, state=state, sync=True)
+                    node_count = len(list(self.keep.all()))
+                    # If we only have sample notes (< 30 nodes) or no local cache, perform full sync
+                    if has_local_cache and node_count > 30:
+                        state = self.keep.dump()
+                        self.keep.authenticate(email, master_token, state=state, sync=True)
+                    else:
+                        self.keep = gkeepapi.Keep()
+                        self.keep.authenticate(email, master_token, state=None, sync=True)
                     self.authenticated = True
                     self.sync_status = "synced"
                     self.last_synced = datetime.now(timezone.utc).isoformat()
                     self._save_state_to_disk()
-                    logger.info("Auto-resumed Google Keep session for user")
+                    logger.info("Auto-resumed Google Keep session for user %s (%d notes)", email, len(list(self.keep.all())))
                 except Exception as auth_err:
                     logger.warning("Session resume sync failed (working offline): %s", auth_err)
                     self.authenticated = True
@@ -211,7 +255,6 @@ class KeepManager:
         """Authenticate with Google Keep using App Password or Master Token."""
         with self.lock:
             try:
-                state = self.keep.dump()
                 clean_email = email.strip()
                 token_to_use = master_token.strip() if master_token else None
                 if not token_to_use and password and (password.startswith("oauth2_4/") or password.startswith("oauth2rt_") or password.startswith("aas_et/")):
@@ -219,21 +262,34 @@ class KeepManager:
 
                 if token_to_use:
                     if token_to_use.startswith("oauth2_4/"):
-                        import gpsoauth, uuid
                         device_id = f"{uuid.getnode():x}"
                         exchange_res = gpsoauth.exchange_token(clean_email, token_to_use, device_id)
                         if "Token" not in exchange_res:
                             err = exchange_res.get("Error", "Unknown exchange error")
                             return False, f"OAuth Token exchange failed: {err}. Please ensure you copied the complete oauth_token cookie."
                         token_to_use = exchange_res["Token"]
+                        if exchange_res.get("Email") and "@" in exchange_res.get("Email"):
+                            clean_email = exchange_res["Email"].strip()
 
-                    self.keep.authenticate(clean_email, token_to_use, state=state, sync=True)
+                    # Resolve verified email from Google if placeholder or missing
+                    if not clean_email or "@" not in clean_email or clean_email.lower() in ("google user", "google account"):
+                        resolved = _fetch_account_email(token_to_use, clean_email)
+                        if resolved:
+                            clean_email = resolved
+
+                    # Start with a clean Keep instance to force downloading all notes from Google Keep cloud
+                    self.keep = gkeepapi.Keep()
+                    self.keep.authenticate(clean_email, token_to_use, state=None, sync=True)
                     token = token_to_use
                 elif password:
                     clean_pw = password.strip().replace(" ", "")
                     try:
-                        self.keep.login(clean_email, clean_pw, state=state, sync=True)
+                        self.keep = gkeepapi.Keep()
+                        self.keep.login(clean_email, clean_pw, state=None, sync=True)
                         token = self.keep.getMasterToken()
+                        resolved = _fetch_account_email(token, clean_email)
+                        if resolved:
+                            clean_email = resolved
                     except gkeepapi.exception.LoginException as le:
                         if "BadAuthentication" in str(le):
                             return False, (
@@ -244,14 +300,15 @@ class KeepManager:
                 else:
                     return False, "Password or master token is required."
 
-                self.email = email
+                self.email = clean_email
                 self.master_token = token
                 self.authenticated = True
                 self.sync_status = "synced"
                 self.last_synced = datetime.now(timezone.utc).isoformat()
 
-                self._save_session(email, token)
+                self._save_session(clean_email, token)
                 self._save_state_to_disk()
+                logger.info("Successfully authenticated user %s with %d notes", clean_email, len(list(self.keep.all())))
                 return True, "Successfully authenticated with Google Keep."
             except gkeepapi.exception.LoginException as le:
                 logger.warning("Google Keep login failed: %s", str(le))
@@ -268,8 +325,11 @@ class KeepManager:
             self.master_token = None
             self.sync_status = "offline"
             self._clear_session()
+            self.keep = gkeepapi.Keep()
+            self._seed_welcome_notes()
+            self._save_state_to_disk()
 
-    def sync(self) -> Tuple[bool, str]:
+    def sync(self, resync: bool = False) -> Tuple[bool, str]:
         """Trigger sync with Google Keep."""
         with self.lock:
             if not self.authenticated:
@@ -277,7 +337,7 @@ class KeepManager:
 
             self.sync_status = "syncing"
             try:
-                self.keep.sync()
+                self.keep.sync(resync=resync)
                 self.sync_status = "synced"
                 self.last_synced = datetime.now(timezone.utc).isoformat()
                 self._save_state_to_disk()
@@ -297,17 +357,9 @@ class KeepManager:
             trash_notes = [n for n in all_notes if n.trashed]
             quick_notes = [n for n in active_notes if any(lbl.name.lower() == "quick notes" for lbl in n.labels.all())]
 
-            masked_email = None
-            if self.email:
-                parts = self.email.split("@")
-                if len(parts) == 2 and len(parts[0]) > 2:
-                    masked_email = f"{parts[0][:2]}***@{parts[1]}"
-                else:
-                    masked_email = self.email
-
             return StatusResponse(
                 authenticated=self.authenticated,
-                email=self.email or masked_email,
+                email=self.email,
                 sync_status=self.sync_status,
                 last_synced=self.last_synced,
                 total_notes=len(active_notes),
