@@ -33,6 +33,8 @@ Packages/
 xcuserdata/
 DerivedData/
 .swiftpm/
+KNotes.app/
+*.app/
 
 # OS / Local
 .DS_Store

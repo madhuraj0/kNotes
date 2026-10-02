@@ -480,11 +480,12 @@ class KeepManager:
                 # Same type update
                 if isinstance(node, KeepList):
                     if req.items is not None:
-                        # Clear existing items and repopulate
+                        # Clear existing items and repopulate preserving order
                         for item in list(node.items):
                             node.remove(item)
-                        for it in req.items:
-                            node.add(it.text, it.checked)
+                        base_sort = 10000000000
+                        for i, it in enumerate(req.items):
+                            node.add(it.text, it.checked, sort=base_sort - i * 1000)
                 else:
                     if req.text is not None:
                         node.text = req.text

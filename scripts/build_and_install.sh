@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "=========================================="
+echo "  KNotes Build & Installation Script      "
+echo "=========================================="
+echo "Project directory: $PROJECT_DIR"
+
+cd "$PROJECT_DIR"
+
+# 1. Run backend test suite
+echo ""
+echo "--> [1/5] Running Backend Test Suite..."
+PYTHONPATH=backend ./.venv/bin/pytest backend/tests/test_api.py -v
+
+# 2. Compile Swift release binary
+echo ""
+echo "--> [2/5] Building Native Swift Release Binary..."
+swift build -c release
+
+# 3. Prepare Application Bundle
+APP_NAME="KNotes.app"
+APPLICATIONS_DIR="/Applications"
+TARGET_APP="$APPLICATIONS_DIR/$APP_NAME"
+LOCAL_APP="$PROJECT_DIR/$APP_NAME"
+
+echo ""
+echo "--> [3/5] Packaging $APP_NAME bundle..."
+rm -rf "$TARGET_APP" "$LOCAL_APP"
+mkdir -p "$TARGET_APP/Contents/MacOS"
+mkdir -p "$TARGET_APP/Contents/Resources/backend"
+
+# Copy executable
+cp ".build/release/KNotes" "$TARGET_APP/Contents/MacOS/KNotes"
+chmod +x "$TARGET_APP/Contents/MacOS/KNotes"
+
+# Copy metadata and icon
+cp "Resources/Info.plist" "$TARGET_APP/Contents/Info.plist"
+echo -n "APPL????" > "$TARGET_APP/Contents/PkgInfo"
+if [ -f "Resources/AppIcon.icns" ]; then
+    cp "Resources/AppIcon.icns" "$TARGET_APP/Contents/Resources/AppIcon.icns"
+fi
+
+# Bundle backend service
+cp -R backend/app backend/requirements.txt backend/run.py "$TARGET_APP/Contents/Resources/backend/"
+
+# 4. Set up ~/.knotes runtime environment
+echo ""
+echo "--> [4/5] Configuring ~/.knotes runtime environment..."
+mkdir -p ~/.knotes/backend
+cp -R backend/app backend/requirements.txt backend/run.py ~/.knotes/backend/
+ln -sfn "$PROJECT_DIR/.venv" ~/.knotes/venv
+chmod 700 ~/.knotes
+
+# Duplicate to local project directory
+cp -R "$TARGET_APP" "$LOCAL_APP"
+
+# 5. Ad-hoc codesign
+echo ""
+echo "--> [5/5] Codesigning $TARGET_APP..."
+codesign --force --deep --sign - "$TARGET_APP"
+codesign --force --deep --sign - "$LOCAL_APP"
+
+echo ""
+echo "=========================================="
+echo "✓ KNotes successfully installed to: $TARGET_APP"
+echo "✓ Bundle verification:"
+codesign -v "$TARGET_APP" && echo "  Signature: Valid (Ad-hoc)"
+echo "=========================================="
