@@ -71,7 +71,7 @@
            fill="url(#bottomCausticB)"
            clip-path="url(#squircleClipB)"/>
 
-  <!-- 2. THE PENCIL ICON (Deep Apple Charcoal Black #1C1C1E) -->
+  <!-- 2. THE PENCIL ICON (Deep Charcoal Black #1C1C1E) -->
   <g filter="url(#blackPencilShadow)">
     <path d="M 353.11,730.29 L 683.06,400.38 L 624.12,341.39 L 294.17,671.25 L 265.80,741.34 C 262.00,751.04 272.07,761.07 281.48,757.70 Z M 712.36,371.66 L 744.89,339.39 C 761.14,323.19 762.00,305.16 746.96,290.27 L 734.78,277.99 C 720.04,262.93 701.80,264.46 685.64,280.29 L 652.99,312.41 Z"
           fill="#1C1C1E"/>

@@ -56,7 +56,7 @@
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
 
-    <!-- Apple Standard Squircle Clip -->
+    <!-- macOS Standard Squircle Clip -->
     <clipPath id="squircleClip">
       <rect x="96" y="96" width="832" height="832" rx="192" ry="192"/>
     </clipPath>

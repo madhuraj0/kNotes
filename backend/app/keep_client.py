@@ -86,17 +86,17 @@ class KeepManager:
         self._attempt_auto_resume()
 
     def _seed_welcome_notes(self) -> None:
-        """Seed rich Notes style welcome notes."""
+        """Seed rich welcome notes."""
         welcome_note = self.keep.createNote(
-            "Welcome to KNotes ",
-            "KNotes brings the iconic Notes experience to Google Keep on macOS.\n\n"
+            "Welcome to kNotes",
+            "kNotes brings a clean, high-fidelity native desktop notes experience to Google Keep on macOS.\n\n"
             "✨ Features:\n"
             "• Native macOS UI with sidebar, search, and vibrant glass design\n"
             "• Bidirectional cloud sync with Google Keep via gkeepapi\n"
             "• Full offline support — read and write notes anytime\n"
-            "• Checklists, tags/labels, and Apple-curated color themes\n"
+            "• Checklists, tags/labels, and curated pastel color themes\n"
             "• Fast search and native keyboard shortcuts (⌘N for new note)\n\n"
-            "To connect your Google Keep account, click the Account status at the bottom of the sidebar "
+            "To connect your Google Keep account, click the Account status at the top of the notes list "
             "or use the Settings sheet.",
         )
         welcome_note.pinned = True

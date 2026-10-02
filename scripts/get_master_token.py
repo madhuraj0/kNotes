@@ -35,9 +35,10 @@ def main():
     print("unofficial Keep API. To connect, Google uses an oauth session token.")
     print()
 
-    email = input("Enter your Google email [default: user@example.com]: ").strip()
+    email = input("Enter your Google email: ").strip()
     if not email:
-        email = "user@example.com"
+        print("Error: Email is required.")
+        sys.exit(1)
 
     print("\nStep 1: Opening Google's Embedded Login in your browser...")
     url = "https://accounts.google.com/EmbeddedSetup"

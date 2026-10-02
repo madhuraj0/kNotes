@@ -1,6 +1,6 @@
 # kNotes
 
-A high-fidelity macOS Notes clone powered by a Google Keep backend. Built in native Swift 6 / SwiftUI with a local offline-first Python `gkeepapi` daemon.
+A high-fidelity native macOS notes app powered by a Google Keep backend. Built in native Swift 6 / SwiftUI with a local offline-first Python `gkeepapi` daemon.
 
 <p align="center">
   <img src="Resources/AppIcon.svg" width="128" height="128" alt="kNotes Icon" />
@@ -10,7 +10,7 @@ A high-fidelity macOS Notes clone powered by a Google Keep backend. Built in nat
 
 ## Features
 
-- **Notes macOS Fidelity**: 3-column NavigationSplitView, liquid glass vibrancy, native search, tags, and Apple pastel color palettes.
+- **Native macOS Experience**: 3-column NavigationSplitView, liquid glass vibrancy, unified search, tags, and curated pastel color palettes.
 - **Offline-First & Fast**: Zero-delay local caching (`~/.knotes`) with background bidirectional synchronization to Google Keep.
 - **Interactive Checklists**: Drag-and-drop reordering, keyboard navigation, and completion state.
 - **Rich Markdown Preview**: Live markdown rendering toggle via the topbar with zero editing clutter.
@@ -30,7 +30,10 @@ A high-fidelity macOS Notes clone powered by a Google Keep backend. Built in nat
 - Swift 6.0+ toolchain
 - Python 3.10+
 
-### Build & Install
+### Option 1: Download Pre-built DMG
+Download the latest `kNotes-v0.1-macOS.dmg` from the [Releases](https://github.com/madhuraj0/KNotes/releases) page, open it, and drag `kNotes` to your Applications folder.
+
+### Option 2: Build & Install from Source
 Clone the repository and run the automated installer:
 ```bash
 git clone https://github.com/madhuraj0/KNotes.git
@@ -63,7 +66,6 @@ open /Applications/kNotes.app
 ## Attributions
 
 - **[gkeepapi](https://github.com/kiwiz/gkeepapi)**: The open-source Google Keep API client created by **Kai (kiwiz)**.
-- **Apple Inc.**: Design language inspiration from macOS Notes, SF Symbols, and Human Interface Guidelines.
 - **[FastAPI](https://fastapi.tiangolo.com)**: Local asynchronous API framework.
 
 ---

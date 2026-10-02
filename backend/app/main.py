@@ -23,8 +23,8 @@ logging.basicConfig(
 logger = logging.getLogger("knotes.api")
 
 app = FastAPI(
-    title="KNotes Google Keep API",
-    description="Local native backend for KNotes Notes clone on macOS",
+    title="kNotes Google Keep API",
+    description="Local native backend for kNotes desktop app on macOS",
     version="1.0.0",
 )
 

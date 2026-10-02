@@ -34,7 +34,7 @@ def test_list_notes():
 
 def test_create_and_get_text_note():
     payload = {
-        "title": "Meeting Notes with Apple Team",
+        "title": "Meeting Notes with Design Team",
         "text": "Discussed macOS Sequoia UI and Swift native performance.",
         "is_list": False,
         "color": "Teal",
