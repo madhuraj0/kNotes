@@ -197,11 +197,14 @@ class KeepManager:
         with self.lock:
             try:
                 state = self.keep.dump()
+                clean_email = email.strip()
                 if master_token:
-                    self.keep.authenticate(email, master_token, state=state, sync=True)
-                    token = master_token
+                    clean_token = master_token.strip()
+                    self.keep.authenticate(clean_email, clean_token, state=state, sync=True)
+                    token = clean_token
                 elif password:
-                    self.keep.login(email, password, state=state, sync=True)
+                    clean_pw = password.strip().replace(" ", "")
+                    self.keep.login(clean_email, clean_pw, state=state, sync=True)
                     token = self.keep.getMasterToken()
                 else:
                     return False, "Password or master token is required."
