@@ -1,16 +1,26 @@
-#!/usr/bin/env bash
-"exec" "$(dirname "$0")/../.venv/bin/python" "$0" "$@"
+#!/usr/bin/env python3
 import json
+import os
 import sys
 import uuid
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Add project root to sys.path
+# Add project root and virtualenv site-packages to sys.path
 script_dir = Path(__file__).resolve().parent
 project_dir = script_dir.parent
 sys.path.insert(0, str(project_dir / "backend"))
+
+# Auto-inject virtualenv site-packages if running with system python
+candidate_site_packages = [
+    project_dir / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    Path.home() / ".knotes" / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    Path("/Users/madhuraj/Downloads/code/KNotes/.venv/lib/python3.12/site-packages"),
+]
+for sp in candidate_site_packages:
+    if sp.exists() and str(sp) not in sys.path:
+        sys.path.insert(0, str(sp))
 
 import gpsoauth
 import gkeepapi
