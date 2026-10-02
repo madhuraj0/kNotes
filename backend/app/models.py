@@ -17,6 +17,7 @@ class NoteResponse(BaseModel):
     archived: bool = False
     trashed: bool = False
     labels: List[str] = Field(default_factory=list)
+    collaborators: List[str] = Field(default_factory=list)
     created: Optional[str] = None
     updated: Optional[str] = None
 
@@ -27,7 +28,9 @@ class NoteCreateRequest(BaseModel):
     items: List[ChecklistItem] = Field(default_factory=list)
     color: str = "White"
     pinned: bool = False
+    archived: bool = False
     labels: List[str] = Field(default_factory=list)
+    collaborators: List[str] = Field(default_factory=list)
 
 class NoteUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -39,6 +42,7 @@ class NoteUpdateRequest(BaseModel):
     archived: Optional[bool] = None
     trashed: Optional[bool] = None
     labels: Optional[List[str]] = None
+    collaborators: Optional[List[str]] = None
 
 class LabelResponse(BaseModel):
     id: str
@@ -59,4 +63,6 @@ class StatusResponse(BaseModel):
     last_synced: Optional[str] = None
     total_notes: int = 0
     pinned_notes: int = 0
+    archived_notes: int = 0
     trash_notes: int = 0
+    quick_notes: int = 0

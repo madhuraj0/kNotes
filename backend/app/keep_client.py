@@ -45,6 +45,21 @@ class KeepManager:
         self.sync_status = "offline"
         self.last_synced: Optional[str] = None
         self._init_storage()
+        self._start_periodic_sync()
+
+    def _start_periodic_sync(self) -> None:
+        """Run periodic background sync every 60 seconds when online."""
+        def loop():
+            import time
+            while True:
+                time.sleep(60)
+                if self.authenticated and self.sync_status != "syncing":
+                    try:
+                        self.sync()
+                    except Exception as e:
+                        logger.warning("Periodic background sync: %s", e)
+        t = threading.Thread(target=loop, daemon=True, name="KeepAutoSync")
+        t.start()
 
     def _init_storage(self) -> None:
         """Initialize local cache directory and state."""
@@ -276,11 +291,12 @@ class KeepManager:
         """Get current system status and counts."""
         with self.lock:
             all_notes = list(self.keep.all())
-            active_notes = [n for n in all_notes if not n.trashed]
+            active_notes = [n for n in all_notes if not n.trashed and not n.archived]
             pinned_notes = [n for n in active_notes if n.pinned]
+            archived_notes = [n for n in all_notes if n.archived and not n.trashed]
             trash_notes = [n for n in all_notes if n.trashed]
+            quick_notes = [n for n in active_notes if any(lbl.name.lower() == "quick notes" for lbl in n.labels.all())]
 
-            # Mask email for privacy
             masked_email = None
             if self.email:
                 parts = self.email.split("@")
@@ -291,12 +307,14 @@ class KeepManager:
 
             return StatusResponse(
                 authenticated=self.authenticated,
-                email=masked_email,
+                email=self.email or masked_email,
                 sync_status=self.sync_status,
                 last_synced=self.last_synced,
                 total_notes=len(active_notes),
                 pinned_notes=len(pinned_notes),
+                archived_notes=len(archived_notes),
                 trash_notes=len(trash_notes),
+                quick_notes=len(quick_notes),
             )
 
     def _node_to_response(self, node: TopLevelNode) -> NoteResponse:
@@ -322,6 +340,17 @@ class KeepManager:
             elif node.color in REVERSE_COLOR_MAP:
                 color_name = REVERSE_COLOR_MAP[node.color]
 
+        collaborators: List[str] = []
+        if hasattr(node, "collaborators"):
+            try:
+                for c in node.collaborators.all():
+                    if isinstance(c, str):
+                        collaborators.append(c)
+                    elif hasattr(c, "email") and c.email:
+                        collaborators.append(c.email)
+            except Exception:
+                pass
+
         created_str = None
         updated_str = None
         if hasattr(node, "timestamps"):
@@ -341,6 +370,7 @@ class KeepManager:
             archived=bool(node.archived),
             trashed=bool(node.trashed),
             labels=labels,
+            collaborators=collaborators,
             created=created_str,
             updated=updated_str,
         )
@@ -361,14 +391,19 @@ class KeepManager:
                 if folder == "trash":
                     if not n.trashed:
                         continue
-                else:
-                    if n.trashed:
+                elif folder == "archived":
+                    if n.trashed or not n.archived:
                         continue
-                    if folder == "pinned" and not n.pinned:
+                elif folder == "pinned":
+                    if n.trashed or n.archived or not n.pinned:
                         continue
-                    elif folder == "archived" and not n.archived:
+                elif folder == "quick":
+                    if n.trashed or n.archived:
                         continue
-                    elif folder in ("all", "quick") and n.archived:
+                    if not any(lbl.name.lower() == "quick notes" for lbl in n.labels.all()):
+                        continue
+                elif folder == "all":
+                    if n.trashed or n.archived:
                         continue
 
                 # 2. Label filtering
@@ -425,6 +460,15 @@ class KeepManager:
                 node.color = COLOR_MAP[req.color]
 
             node.pinned = req.pinned
+            if req.archived:
+                node.archived = True
+
+            if req.collaborators:
+                for col_email in req.collaborators:
+                    try:
+                        node.collaborators.add(col_email)
+                    except Exception as e:
+                        logger.warning("Could not add collaborator %s: %s", col_email, e)
 
             # Assign labels
             for lbl_name in req.labels:
@@ -459,6 +503,15 @@ class KeepManager:
 
             if req.archived is not None:
                 node.archived = req.archived
+
+            if req.collaborators is not None:
+                try:
+                    for c in list(node.collaborators.all()):
+                        node.collaborators.remove(c)
+                    for col_email in req.collaborators:
+                        node.collaborators.add(col_email)
+                except Exception as e:
+                    logger.warning("Could not update collaborators: %s", e)
 
             if req.trashed is not None:
                 if req.trashed and not node.trashed:

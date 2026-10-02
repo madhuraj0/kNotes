@@ -47,6 +47,17 @@ public struct AccountSheetView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close (Esc)")
+                    .keyboardShortcut(.cancelAction)
                 }
                 .padding(.top, 4)
 
@@ -125,8 +136,6 @@ public struct AccountSheetView: View {
                 }
                 .buttonStyle(.bordered)
 
-                Spacer()
-
                 Button(role: .destructive) {
                     Task {
                         await store.logout()
@@ -135,6 +144,14 @@ public struct AccountSheetView: View {
                     Text("Sign Out")
                 }
                 .buttonStyle(.bordered)
+
+                Spacer()
+
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 4)
         }

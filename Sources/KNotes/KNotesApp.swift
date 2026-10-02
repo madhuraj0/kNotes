@@ -39,7 +39,7 @@ struct KNotesApp: App {
                 .keyboardShortcut("s", modifiers: .command)
             }
 
-            CommandGroup(after: .appInfo) {
+            CommandGroup(replacing: .appSettings) {
                 Button("Google Keep Account Settings...") {
                     store.showAccountSheet = true
                 }

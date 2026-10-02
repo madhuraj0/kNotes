@@ -104,7 +104,7 @@ public struct ChecklistView: View {
             .foregroundColor(item.checked ? .secondary : .primary)
             .focused($focusedItemId, equals: item.id)
             .onSubmit {
-                commitNewItem()
+                insertItemAfter(item)
             }
 
             Spacer()
@@ -120,6 +120,16 @@ public struct ChecklistView: View {
             .help("Delete item")
         }
         .padding(.vertical, 3)
+    }
+
+    private func insertItemAfter(_ item: ChecklistItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        let newItem = ChecklistItem(text: "", checked: false)
+        withAnimation {
+            items.insert(newItem, at: index + 1)
+        }
+        focusedItemId = newItem.id
+        onUpdate()
     }
 
     private func toggleCheck(for item: ChecklistItem) {
@@ -151,6 +161,7 @@ public struct ChecklistView: View {
                 items.append(newItem)
             }
             newItemText = ""
+            focusedItemId = newItem.id
             onUpdate()
         }
     }

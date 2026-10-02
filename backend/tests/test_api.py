@@ -158,3 +158,52 @@ def test_security_directory_permissions():
     st = os.stat(test_dir)
     # Directory should have 0700 permissions
     assert (st.st_mode & 0o777) == 0o700
+
+
+def test_archive_flow():
+    """Verify archiving notes works and updates folder queries properly."""
+    res = client.post("/api/notes", json={"title": "Archive Me", "text": "Important archive doc"})
+    assert res.status_code == 201
+    note_id = res.json()["id"]
+
+    # Archive the note
+    patch_res = client.patch(f"/api/notes/{note_id}", json={"archived": True})
+    assert patch_res.status_code == 200
+    assert patch_res.json()["archived"] is True
+
+    # Not in all folder
+    all_res = client.get("/api/notes?folder=all")
+    assert not any(n["id"] == note_id for n in all_res.json())
+
+    # In archived folder
+    arc_res = client.get("/api/notes?folder=archived")
+    assert any(n["id"] == note_id for n in arc_res.json())
+
+    # Unarchive
+    unarc_res = client.patch(f"/api/notes/{note_id}", json={"archived": False})
+    assert unarc_res.status_code == 200
+    assert unarc_res.json()["archived"] is False
+
+
+def test_quick_notes_flow():
+    """Verify quick notes folder categorization."""
+    res = client.post("/api/notes", json={"title": "Quick Capture", "text": "Rapid thought", "labels": ["Quick Notes"]})
+    assert res.status_code == 201
+    note_id = res.json()["id"]
+
+    quick_res = client.get("/api/notes?folder=quick")
+    assert quick_res.status_code == 200
+    assert any(n["id"] == note_id for n in quick_res.json())
+
+
+def test_collaborators():
+    """Verify adding and updating collaborators on a note."""
+    res = client.post("/api/notes", json={"title": "Shared Note", "text": "Team plan", "collaborators": ["alice@gmail.com"]})
+    assert res.status_code == 201
+    note_id = res.json()["id"]
+    assert "alice@gmail.com" in res.json()["collaborators"]
+
+    patch_res = client.patch(f"/api/notes/{note_id}", json={"collaborators": ["alice@gmail.com", "bob@gmail.com"]})
+    assert patch_res.status_code == 200
+    assert "bob@gmail.com" in patch_res.json()["collaborators"]
+

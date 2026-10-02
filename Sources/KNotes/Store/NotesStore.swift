@@ -14,6 +14,22 @@ public final class NotesStore: ObservableObject {
     @Published public var labels: [LabelItem] = []
     @Published public var status: AppStatus? = nil
 
+    @Published public var sidebarSelection: SidebarItem = .folder(.all) {
+        didSet {
+            switch sidebarSelection {
+            case .folder(let f):
+                selectedFolder = f
+                selectedLabel = nil
+            case .tag(let t):
+                selectedFolder = .all
+                selectedLabel = t
+            }
+            Task {
+                await fetchNotes()
+            }
+        }
+    }
+
     @Published public var isLoading: Bool = false
     @Published public var isSyncing: Bool = false
     @Published public var showAccountSheet: Bool = false
@@ -30,6 +46,17 @@ public final class NotesStore: ObservableObject {
             .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 Task {
+                    await self?.fetchNotes()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Periodic background refresh
+        Timer.publish(every: 40, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                Task {
+                    await self?.fetchStatus()
                     await self?.fetchNotes()
                 }
             }
@@ -94,37 +121,49 @@ public final class NotesStore: ObservableObject {
     }
 
     public func selectFolder(_ folder: Folder) {
-        selectedFolder = folder
-        selectedLabel = nil
-        Task {
-            await fetchNotes()
-        }
+        sidebarSelection = .folder(folder)
     }
 
     public func selectLabel(_ labelName: String) {
-        selectedLabel = labelName
-        selectedFolder = .all
-        Task {
-            await fetchNotes()
-        }
+        sidebarSelection = .tag(labelName)
     }
 
     public func createNote(isList: Bool = false) {
         Task {
             do {
-                let defaultLabels = selectedLabel != nil ? [selectedLabel!] : []
+                var defaultLabels: [String] = []
+                var isPinned = false
+                var isArchived = false
+
+                switch sidebarSelection {
+                case .folder(.quick):
+                    defaultLabels.append("Quick Notes")
+                case .folder(.pinned):
+                    isPinned = true
+                case .folder(.archived):
+                    isArchived = true
+                case .tag(let t):
+                    defaultLabels.append(t)
+                default:
+                    if let sel = selectedLabel {
+                        defaultLabels.append(sel)
+                    }
+                }
+
                 let newNote = try await APIClient.shared.createNote(
                     title: "",
                     text: "",
                     isList: isList,
                     items: isList ? [ChecklistItem(text: "", checked: false)] : [],
                     color: "White",
-                    pinned: selectedFolder == .pinned,
+                    pinned: isPinned,
+                    archived: isArchived,
                     labels: defaultLabels
                 )
                 self.notes.insert(newNote, at: 0)
                 self.selectedNoteId = newNote.id
                 await fetchStatus()
+                await fetchLabels()
             } catch {
                 self.errorMessage = "Failed to create note: \(error.localizedDescription)"
             }
@@ -160,7 +199,8 @@ public final class NotesStore: ObservableObject {
                     pinned: currentNote.pinned,
                     archived: currentNote.archived,
                     trashed: currentNote.trashed,
-                    labels: currentNote.labels
+                    labels: currentNote.labels,
+                    collaborators: currentNote.collaborators
                 )
             } catch {
                 print("[NotesStore] Auto-save error: \(error)")
@@ -180,6 +220,22 @@ public final class NotesStore: ObservableObject {
                 await fetchStatus()
             } catch {
                 self.errorMessage = "Failed to update pin: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    public func toggleArchive(note: Note) {
+        Task {
+            let newArchived = !note.archived
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index].archived = newArchived
+            }
+            do {
+                _ = try await APIClient.shared.updateNote(id: note.id, archived: newArchived)
+                await fetchNotes()
+                await fetchStatus()
+            } catch {
+                self.errorMessage = "Failed to update archive: \(error.localizedDescription)"
             }
         }
     }
@@ -254,6 +310,38 @@ public final class NotesStore: ObservableObject {
         }
     }
 
+    public func addCollaborator(note: Note, email: String) {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !note.collaborators.contains(trimmed) else { return }
+        Task {
+            var updated = note.collaborators
+            updated.append(trimmed)
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index].collaborators = updated
+            }
+            do {
+                _ = try await APIClient.shared.updateNote(id: note.id, collaborators: updated)
+            } catch {
+                self.errorMessage = "Failed to add collaborator: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    public func removeCollaborator(note: Note, email: String) {
+        Task {
+            var updated = note.collaborators
+            updated.removeAll(where: { $0 == email })
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index].collaborators = updated
+            }
+            do {
+                _ = try await APIClient.shared.updateNote(id: note.id, collaborators: updated)
+            } catch {
+                self.errorMessage = "Failed to remove collaborator: \(error.localizedDescription)"
+            }
+        }
+    }
+
     public func deleteNote(note: Note) {
         Task {
             // Find next note to select
@@ -298,7 +386,7 @@ public final class NotesStore: ObservableObject {
                 await fetchLabels()
                 await fetchStatus()
             } catch {
-                self.errorMessage = "Sync failed: \(error.localizedDescription)"
+                self.errorMessage = "Sync note: \(error.localizedDescription)"
             }
             isSyncing = false
         }

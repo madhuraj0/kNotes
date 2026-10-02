@@ -15,66 +15,66 @@ public struct NotesListView: View {
         store.notes.filter { !$0.pinned }
     }
 
+    private var currentSectionTitle: String {
+        store.sidebarSelection.title
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
-            // Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .font(.system(size: 13))
+            // Top Account & Sync Bar (Moved to top of notes list as requested)
+            accountStatusBar
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
-                TextField("Search all notes...", text: $store.searchQuery)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+            // Folder Title & Note Count Header
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(currentSectionTitle)
+                        .font(.system(size: 20, weight: .bold))
 
-                if !store.searchQuery.isEmpty {
-                    Button {
-                        store.searchQuery = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 12))
-                    }
-                    .buttonStyle(.plain)
+                    Text("\(store.notes.count) Notes")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
                 }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.secondary.opacity(0.1))
-            .cornerRadius(8)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
 
-            // Header note count
-            HStack {
-                Text("\(store.notes.count) Notes")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
                 Spacer()
 
-                Button {
-                    store.createNote(isList: false)
-                } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.accentColor)
+                HStack(spacing: 6) {
+                    Button {
+                        store.createNote(isList: true)
+                    } label: {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("New Checklist (⇧⌘N)")
+
+                    Button {
+                        store.createNote(isList: false)
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .help("New Note (⌘N)")
                 }
-                .buttonStyle(.plain)
-                .help("New Note (⌘N)")
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 6)
+            .padding(.vertical, 8)
 
             Divider()
 
-            // Notes list
+            // Notes list or Empty state
             if store.notes.isEmpty {
                 VStack(spacing: 12) {
                     Spacer()
-                    Image(systemName: "note.text")
+                    Image(systemName: emptyStateIcon)
                         .font(.system(size: 38))
-                        .foregroundColor(.secondary.opacity(0.5))
-                    Text("No Notes Found")
+                        .foregroundColor(.secondary.opacity(0.4))
+                    Text(emptyStateText)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
                     Button("Create Note") {
@@ -86,31 +86,71 @@ public struct NotesListView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                ScrollViewReader { proxy in
-                    List(selection: $store.selectedNoteId) {
-                        if !pinnedNotes.isEmpty {
-                            Section(header: Text("PINNED").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
-                                ForEach(pinnedNotes) { note in
-                                    noteRow(for: note)
-                                        .tag(note.id)
-                                }
-                            }
-                        }
-
-                        if !regularNotes.isEmpty {
-                            Section(header: Text(!pinnedNotes.isEmpty ? "NOTES" : "").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
-                                ForEach(regularNotes) { note in
-                                    noteRow(for: note)
-                                        .tag(note.id)
-                                }
+                List(selection: $store.selectedNoteId) {
+                    if !pinnedNotes.isEmpty && store.selectedFolder != .pinned {
+                        Section(header: Text("PINNED").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
+                            ForEach(pinnedNotes) { note in
+                                noteRow(for: note)
+                                    .tag(note.id)
                             }
                         }
                     }
-                    .listStyle(.inset)
+
+                    Section(header: Text((!pinnedNotes.isEmpty && store.selectedFolder != .pinned) ? "NOTES" : "").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
+                        ForEach(store.selectedFolder == .pinned ? pinnedNotes : regularNotes) { note in
+                            noteRow(for: note)
+                                .tag(note.id)
+                        }
+                    }
                 }
+                .listStyle(.inset)
             }
         }
-        .frame(minWidth: 230, idealWidth: 280)
+        .frame(minWidth: 240, idealWidth: 280)
+    }
+
+    // MARK: - Account Status Bar
+    private var accountStatusBar: some View {
+        HStack(spacing: 8) {
+            Button {
+                store.showAccountSheet = true
+            } label: {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(store.status?.authenticated == true ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8)
+
+                    Text(store.status?.authenticated == true ? (store.status?.email ?? "Google Keep") : "Local Mode")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.secondary.opacity(0.08))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+            .help("Google Keep Account Settings (⌘,)")
+
+            Spacer()
+
+            Button {
+                store.syncNow()
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .rotationEffect(.degrees(store.isSyncing ? 360 : 0))
+                    .animation(store.isSyncing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isSyncing)
+            }
+            .buttonStyle(.plain)
+            .help("Sync Now (⌘S)")
+        }
     }
 
     private func noteRow(for note: Note) -> some View {
@@ -142,8 +182,14 @@ public struct NotesListView: View {
                 }
             }
 
-            // Date and snippet
+            // Date, snippet, and checklist icon
             HStack(spacing: 5) {
+                if note.isList {
+                    Image(systemName: "checklist")
+                        .font(.system(size: 10))
+                        .foregroundColor(isSelected ? .white.opacity(0.85) : .secondary)
+                }
+
                 Text(note.formattedDate)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isSelected ? .white.opacity(0.85) : .secondary)
@@ -158,8 +204,8 @@ public struct NotesListView: View {
                     .lineLimit(1)
             }
 
-            // Labels / Tag pills
-            if !note.labels.isEmpty {
+            // Labels & Collaborators
+            if !note.labels.isEmpty || !note.collaborators.isEmpty {
                 HStack(spacing: 4) {
                     ForEach(note.labels, id: \.self) { labelName in
                         HStack(spacing: 2) {
@@ -172,6 +218,20 @@ public struct NotesListView: View {
                         .padding(.vertical, 2)
                         .background(isSelected ? Color.white.opacity(0.2) : Color.secondary.opacity(0.12))
                         .foregroundColor(isSelected ? .white : .secondary)
+                        .cornerRadius(6)
+                    }
+
+                    if !note.collaborators.isEmpty {
+                        HStack(spacing: 2) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 8))
+                            Text("\(note.collaborators.count)")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.2) : Color.blue.opacity(0.12))
+                        .foregroundColor(isSelected ? .white : .blue)
                         .cornerRadius(6)
                     }
                 }
@@ -188,6 +248,12 @@ public struct NotesListView: View {
                 store.togglePin(note: note)
             } label: {
                 Label(note.pinned ? "Unpin Note" : "Pin Note", systemImage: note.pinned ? "pin.slash" : "pin")
+            }
+
+            Button {
+                store.toggleArchive(note: note)
+            } label: {
+                Label(note.archived ? "Unarchive Note" : "Archive Note", systemImage: "archivebox")
             }
 
             Menu("Note Color") {
@@ -221,11 +287,42 @@ public struct NotesListView: View {
 
             Divider()
 
-            Button(role: .destructive) {
-                store.deleteNote(note: note)
-            } label: {
-                Label("Move to Trash", systemImage: "trash")
+            if note.trashed {
+                Button("Restore Note") {
+                    store.restoreNote(note: note)
+                }
+                Button(role: .destructive) {
+                    store.deleteNote(note: note)
+                } label: {
+                    Label("Delete Permanently", systemImage: "trash")
+                }
+            } else {
+                Button(role: .destructive) {
+                    store.deleteNote(note: note)
+                } label: {
+                    Label("Move to Trash", systemImage: "trash")
+                }
             }
+        }
+    }
+
+    private var emptyStateIcon: String {
+        switch store.selectedFolder {
+        case .all: return "note.text"
+        case .quick: return "bolt.fill"
+        case .pinned: return "pin.fill"
+        case .archived: return "archivebox.fill"
+        case .trash: return "trash.fill"
+        }
+    }
+
+    private var emptyStateText: String {
+        switch store.selectedFolder {
+        case .all: return "No Notes"
+        case .quick: return "No Quick Notes"
+        case .pinned: return "No Pinned Notes"
+        case .archived: return "Archive is Empty"
+        case .trash: return "Recently Deleted is Empty"
         }
     }
 }

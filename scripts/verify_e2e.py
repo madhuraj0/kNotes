@@ -58,6 +58,7 @@ def test_api_workflow(port=8765):
         updated = json.loads(resp.read().decode("utf-8"))
         assert updated["is_list"] is True
         assert len(updated["items"]) == 2
+        note_id = updated["id"]
         print("    Checklist update successful.")
 
     print("--> 5. Testing DELETE /api/notes/{id}...")

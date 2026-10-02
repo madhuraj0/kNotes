@@ -97,7 +97,9 @@ public final class APIClient {
         items: [ChecklistItem] = [],
         color: String = "White",
         pinned: Bool = false,
-        labels: [String] = []
+        archived: Bool = false,
+        labels: [String] = [],
+        collaborators: [String] = []
     ) async throws -> Note {
         let url = baseURL.appendingPathComponent("api/notes")
         var request = URLRequest(url: url)
@@ -111,7 +113,9 @@ public final class APIClient {
             "items": items.map { ["id": $0.id as Any, "text": $0.text, "checked": $0.checked] },
             "color": color,
             "pinned": pinned,
-            "labels": labels
+            "archived": archived,
+            "labels": labels,
+            "collaborators": collaborators
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
@@ -130,7 +134,8 @@ public final class APIClient {
         pinned: Bool? = nil,
         archived: Bool? = nil,
         trashed: Bool? = nil,
-        labels: [String]? = nil
+        labels: [String]? = nil,
+        collaborators: [String]? = nil
     ) async throws -> Note {
         let url = baseURL.appendingPathComponent("api/notes/\(id)")
         var request = URLRequest(url: url)
@@ -149,6 +154,7 @@ public final class APIClient {
         if let archived = archived { payload["archived"] = archived }
         if let trashed = trashed { payload["trashed"] = trashed }
         if let labels = labels { payload["labels"] = labels }
+        if let collaborators = collaborators { payload["collaborators"] = collaborators }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 

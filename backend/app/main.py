@@ -113,6 +113,7 @@ def get_note(note_id: str) -> NoteResponse:
 
 
 @app.put("/api/notes/{note_id}", response_model=NoteResponse)
+@app.patch("/api/notes/{note_id}", response_model=NoteResponse)
 def update_note(note_id: str, req: NoteUpdateRequest) -> NoteResponse:
     """Update note content, title, tags, color, or pinned state."""
     note = manager.update_note(note_id, req)

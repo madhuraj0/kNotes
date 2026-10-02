@@ -8,36 +8,32 @@ public struct SidebarView: View {
     }
 
     public var body: some View {
-        List {
+        List(selection: $store.sidebarSelection) {
             Section("Quick Access") {
                 ForEach(Folder.allCases) { folder in
-                    NavigationLink(
-                        value: folder,
-                        label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: folder.iconName)
-                                    .foregroundColor(folder.iconColor)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .frame(width: 20)
+                    HStack(spacing: 10) {
+                        Image(systemName: folder.iconName)
+                            .foregroundColor(folder.iconColor)
+                            .font(.system(size: 14, weight: .medium))
+                            .frame(width: 20)
 
-                                Text(folder.title)
-                                    .font(.system(size: 13, weight: .regular))
+                        Text(folder.title)
+                            .font(.system(size: 13, weight: .regular))
 
-                                Spacer()
+                        Spacer()
 
-                                if let count = countForFolder(folder), count > 0 {
-                                    Text("\(count)")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Color.secondary.opacity(0.12))
-                                        .cornerRadius(8)
-                                }
-                            }
-                            .contentShape(Rectangle())
+                        if let count = countForFolder(folder), count > 0 {
+                            Text("\(count)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.secondary.opacity(0.12))
+                                .cornerRadius(8)
                         }
-                    )
+                    }
+                    .tag(SidebarItem.folder(folder))
+                    .contentShape(Rectangle())
                 }
             }
 
@@ -71,10 +67,8 @@ public struct SidebarView: View {
                                     .cornerRadius(8)
                             }
                         }
+                        .tag(SidebarItem.tag(label.name))
                         .contentShape(Rectangle())
-                        .onTapGesture {
-                            store.selectLabel(label.name)
-                        }
                         .contextMenu {
                             Button(role: .destructive) {
                                 Task {
@@ -98,82 +92,21 @@ public struct SidebarView: View {
                             .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Add New Tag")
+                    .help("Add New Tag (⌘T)")
                 }
             }
         }
         .listStyle(.sidebar)
-        .safeAreaInset(edge: .bottom) {
-            bottomStatusBar
-        }
-    }
-
-    private var bottomStatusBar: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 10) {
-                // Connection status
-                Button {
-                    store.showAccountSheet = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(store.status?.authenticated == true ? Color.green : Color.orange)
-                            .frame(width: 8, height: 8)
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(store.status?.authenticated == true ? (store.status?.email ?? "Google Keep") : "Local Mode")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                            Text(store.status?.authenticated == true ? "Synced with Keep" : "Sign In to Sync")
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .help("Manage Google Keep Account")
-
-                Spacer()
-
-                // Manual sync button
-                Button {
-                    store.syncNow()
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .rotationEffect(.degrees(store.isSyncing ? 360 : 0))
-                        .animation(store.isSyncing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isSyncing)
-                }
-                .buttonStyle(.plain)
-                .help("Sync Now with Google Keep")
-
-                // Account Settings button
-                Button {
-                    store.showAccountSheet = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Account Settings")
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.thinMaterial)
-        }
     }
 
     private func countForFolder(_ folder: Folder) -> Int? {
         guard let s = store.status else { return nil }
         switch folder {
         case .all: return s.totalNotes
+        case .quick: return s.quickNotes
         case .pinned: return s.pinnedNotes
+        case .archived: return s.archivedNotes
         case .trash: return s.trashNotes
-        default: return nil
         }
     }
 

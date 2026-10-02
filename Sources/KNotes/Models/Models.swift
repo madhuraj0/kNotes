@@ -35,6 +35,7 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
     public var archived: Bool
     public var trashed: Bool
     public var labels: [String]
+    public var collaborators: [String]
     public var created: String?
     public var updated: String?
 
@@ -49,6 +50,7 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         archived: Bool = false,
         trashed: Bool = false,
         labels: [String] = [],
+        collaborators: [String] = [],
         created: String? = nil,
         updated: String? = nil
     ) {
@@ -62,6 +64,7 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         self.archived = archived
         self.trashed = trashed
         self.labels = labels
+        self.collaborators = collaborators
         self.created = created
         self.updated = updated
     }
@@ -69,7 +72,28 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case id, title, text
         case isList = "is_list"
-        case items, color, pinned, archived, trashed, labels, created, updated
+        case items, color, pinned, archived, trashed, labels, collaborators, created, updated
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        self.text = try container.decodeIfPresent(String.self, forKey: .text) ?? ""
+        self.isList = try container.decodeIfPresent(Bool.self, forKey: .isList) ?? false
+        self.items = try container.decodeIfPresent([ChecklistItem].self, forKey: .items) ?? []
+        self.color = try container.decodeIfPresent(String.self, forKey: .color) ?? "White"
+        self.pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        self.archived = try container.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        self.trashed = try container.decodeIfPresent(Bool.self, forKey: .trashed) ?? false
+        self.labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
+        self.collaborators = try container.decodeIfPresent([String].self, forKey: .collaborators) ?? []
+        self.created = try container.decodeIfPresent(String.self, forKey: .created)
+        self.updated = try container.decodeIfPresent(String.self, forKey: .updated)
+    }
+
+    public var isQuickNote: Bool {
+        labels.contains { $0.caseInsensitiveCompare("Quick Notes") == .orderedSame }
     }
 
     public var displayTitle: String {
@@ -194,6 +218,23 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         default: return Color.accentColor
         }
     }
+
+    public static func swatchColor(for name: String) -> Color {
+        switch name {
+        case "Red": return Color(red: 0.96, green: 0.45, blue: 0.42)
+        case "Orange": return Color(red: 0.98, green: 0.65, blue: 0.35)
+        case "Yellow": return Color(red: 0.98, green: 0.86, blue: 0.35)
+        case "Green": return Color(red: 0.50, green: 0.82, blue: 0.55)
+        case "Teal": return Color(red: 0.40, green: 0.80, blue: 0.80)
+        case "Blue": return Color(red: 0.45, green: 0.68, blue: 0.95)
+        case "DarkBlue": return Color(red: 0.35, green: 0.48, blue: 0.88)
+        case "Purple": return Color(red: 0.72, green: 0.55, blue: 0.90)
+        case "Pink": return Color(red: 0.95, green: 0.52, blue: 0.75)
+        case "Brown": return Color(red: 0.70, green: 0.58, blue: 0.48)
+        case "Gray": return Color(red: 0.75, green: 0.78, blue: 0.80)
+        default: return Color.white
+        }
+    }
 }
 
 public struct LabelItem: Identifiable, Codable, Equatable, Hashable {
@@ -213,7 +254,9 @@ public struct AppStatus: Codable, Equatable {
     public var lastSynced: String?
     public var totalNotes: Int
     public var pinnedNotes: Int
+    public var archivedNotes: Int
     public var trashNotes: Int
+    public var quickNotes: Int
 
     private enum CodingKeys: String, CodingKey {
         case authenticated, email
@@ -221,7 +264,22 @@ public struct AppStatus: Codable, Equatable {
         case lastSynced = "last_synced"
         case totalNotes = "total_notes"
         case pinnedNotes = "pinned_notes"
+        case archivedNotes = "archived_notes"
         case trashNotes = "trash_notes"
+        case quickNotes = "quick_notes"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.authenticated = try container.decodeIfPresent(Bool.self, forKey: .authenticated) ?? false
+        self.email = try container.decodeIfPresent(String.self, forKey: .email)
+        self.syncStatus = try container.decodeIfPresent(String.self, forKey: .syncStatus) ?? "offline"
+        self.lastSynced = try container.decodeIfPresent(String.self, forKey: .lastSynced)
+        self.totalNotes = try container.decodeIfPresent(Int.self, forKey: .totalNotes) ?? 0
+        self.pinnedNotes = try container.decodeIfPresent(Int.self, forKey: .pinnedNotes) ?? 0
+        self.archivedNotes = try container.decodeIfPresent(Int.self, forKey: .archivedNotes) ?? 0
+        self.trashNotes = try container.decodeIfPresent(Int.self, forKey: .trashNotes) ?? 0
+        self.quickNotes = try container.decodeIfPresent(Int.self, forKey: .quickNotes) ?? 0
     }
 }
 
@@ -261,6 +319,25 @@ public enum Folder: String, CaseIterable, Identifiable, Hashable {
         case .pinned: return .orange
         case .archived: return .indigo
         case .trash: return .secondary
+        }
+    }
+}
+
+public enum SidebarItem: Hashable, Identifiable {
+    case folder(Folder)
+    case tag(String)
+
+    public var id: String {
+        switch self {
+        case .folder(let f): return "folder_\(f.rawValue)"
+        case .tag(let t): return "tag_\(t)"
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .folder(let f): return f.title
+        case .tag(let t): return "# \(t)"
         }
     }
 }
