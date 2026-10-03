@@ -251,3 +251,22 @@ def test_non_destructive_backup_and_archive():
     assert archived_data["title"] == "Important Thought"
 
 
+def test_security_cross_origin_blocking():
+    """Verify that cross-site and unauthorized external origin requests are rejected with 403."""
+    # 1. Cross-site browser request
+    res_cross_site = client.get("/api/notes", headers={"sec-fetch-site": "cross-site"})
+    assert res_cross_site.status_code == 403
+
+    # 2. Untrusted external origin
+    res_external_origin = client.post("/api/sync", headers={"origin": "https://malicious-site.com"})
+    assert res_external_origin.status_code == 403
+
+    # 3. Untrusted external referer without origin
+    res_external_referer = client.get("/api/notes", headers={"referer": "https://phishing.com/page"})
+    assert res_external_referer.status_code == 403
+
+    # 4. Legitimate local request succeeds
+    res_valid = client.get("/api/status")
+    assert res_valid.status_code == 200
+
+

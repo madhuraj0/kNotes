@@ -128,7 +128,9 @@ public final class ProcessManager {
             }
         }
         if !fileManager.fileExists(atPath: logPath) {
-            fileManager.createFile(atPath: logPath, contents: nil)
+            fileManager.createFile(atPath: logPath, contents: nil, attributes: [.posixPermissions: 0o600])
+        } else {
+            try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: logPath)
         }
         if let logHandle = FileHandle(forWritingAtPath: logPath) {
             logHandle.seekToEndOfFile()

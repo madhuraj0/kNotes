@@ -1,6 +1,6 @@
 import logging
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -27,6 +27,59 @@ app = FastAPI(
     description="Local native backend for kNotes desktop app on macOS",
     version="1.0.0",
 )
+
+
+@app.middleware("http")
+async def enforce_local_origin_security(request: Request, call_next):
+    """
+    Prevent drive-by Cross-Site Request Forgery (CSRF) and cross-origin attacks from web pages.
+    Rejects any request originating from an external web domain before any handler can execute.
+    """
+    # 1. Block any request flagged by modern browsers as cross-site
+    sec_fetch_site = request.headers.get("sec-fetch-site")
+    if sec_fetch_site and sec_fetch_site.lower() == "cross-site":
+        logger.warning("Blocked cross-site request with Sec-Fetch-Site: %s", sec_fetch_site)
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": "Forbidden: Cross-site requests from web pages are not permitted."},
+        )
+
+    # 2. If an Origin header is present, strictly verify it is local
+    origin = request.headers.get("origin")
+    if origin:
+        origin_lower = origin.lower()
+        is_local_origin = (
+            origin_lower.startswith("http://localhost")
+            or origin_lower.startswith("http://127.0.0.1")
+            or origin_lower.startswith("https://localhost")
+            or origin_lower.startswith("https://127.0.0.1")
+        )
+        if not is_local_origin:
+            logger.warning("Blocked request from untrusted origin: %s", origin)
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Forbidden: Untrusted external origin."},
+            )
+
+    # 3. If Referer is present and Origin is absent, block external web referers
+    referer = request.headers.get("referer")
+    if referer and not origin:
+        referer_lower = referer.lower()
+        is_local_referer = (
+            referer_lower.startswith("http://localhost")
+            or referer_lower.startswith("http://127.0.0.1")
+            or referer_lower.startswith("https://localhost")
+            or referer_lower.startswith("https://127.0.0.1")
+        )
+        if not is_local_referer:
+            logger.warning("Blocked request from untrusted referer: %s", referer)
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "Forbidden: Untrusted external referer."},
+            )
+
+    return await call_next(request)
+
 
 # CORS restricted to local origin
 app.add_middleware(
