@@ -10,7 +10,7 @@ sys.path.insert(0, str(backend_dir))
 home = Path.home()
 candidate_site_packages = [
     home / ".knotes" / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
-    Path("/Users/madhuraj/Downloads/code/KNotes/.venv/lib") / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
+    backend_dir.parent / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
     backend_dir / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
 ]
 

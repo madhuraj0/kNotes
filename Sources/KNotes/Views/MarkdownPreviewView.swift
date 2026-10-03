@@ -12,12 +12,7 @@ public struct MarkdownPreviewView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                if markdownText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("No content to preview.")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary.opacity(0.5))
-                        .padding(.top, 40)
-                } else {
+                if !markdownText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     let blocks = parseMarkdownBlocks(markdownText)
                     ForEach(0..<blocks.count, id: \.self) { idx in
                         renderBlock(blocks[idx])
@@ -30,25 +25,32 @@ public struct MarkdownPreviewView: View {
         }
     }
 
+    private func markdownStyledText(_ text: String) -> Text {
+        if let attr = try? AttributedString(markdown: text, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+            return Text(attr)
+        }
+        return Text(text)
+    }
+
     @ViewBuilder
     private func renderBlock(_ block: MarkdownBlock) -> some View {
         switch block {
         case .header1(let text):
-            Text(LocalizedStringKey(text))
+            markdownStyledText(text)
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.top, 8)
                 .padding(.bottom, 2)
 
         case .header2(let text):
-            Text(LocalizedStringKey(text))
+            markdownStyledText(text)
                 .font(.system(size: 19, weight: .bold))
                 .foregroundColor(.primary)
                 .padding(.top, 6)
                 .padding(.bottom, 2)
 
         case .header3(let text):
-            Text(LocalizedStringKey(text))
+            markdownStyledText(text)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.primary)
                 .padding(.top, 4)
@@ -59,7 +61,7 @@ public struct MarkdownPreviewView: View {
                     .fill(Color.accentColor.opacity(0.7))
                     .frame(width: 3)
 
-                Text(LocalizedStringKey(text))
+                markdownStyledText(text)
                     .font(.system(size: 14).italic())
                     .foregroundColor(.secondary)
                     .lineSpacing(3)
@@ -98,7 +100,7 @@ public struct MarkdownPreviewView: View {
                     .frame(width: 5, height: 5)
                     .padding(.top, 7)
 
-                Text(LocalizedStringKey(text))
+                markdownStyledText(text)
                     .font(.system(size: 14))
                     .lineSpacing(3)
             }
@@ -110,7 +112,7 @@ public struct MarkdownPreviewView: View {
                     .foregroundColor(.secondary)
                     .frame(width: 20, alignment: .leading)
 
-                Text(LocalizedStringKey(text))
+                markdownStyledText(text)
                     .font(.system(size: 14))
                     .lineSpacing(3)
             }
@@ -120,7 +122,7 @@ public struct MarkdownPreviewView: View {
                 .padding(.vertical, 6)
 
         case .paragraph(let text):
-            Text(LocalizedStringKey(text))
+            markdownStyledText(text)
                 .font(.system(size: 14))
                 .lineSpacing(4)
                 .textSelection(.enabled)

@@ -71,6 +71,131 @@ struct KNotesApp: App {
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
+
+            CommandGroup(after: .pasteboard) {
+                Divider()
+
+                Button(store.selectedNote?.trashed == true ? "Delete Note Permanently" : "Move Note to Trash") {
+                    if let note = store.selectedNote {
+                        store.deleteNote(note: note)
+                    }
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(store.selectedNote == nil)
+            }
+
+            CommandGroup(after: .textEditing) {
+                Button("Find in Notes...") {
+                    store.shouldFocusSearch = true
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
+
+            CommandMenu("Note") {
+                Button(store.selectedNote?.pinned == true ? "Unpin Note" : "Pin Note") {
+                    if let note = store.selectedNote {
+                        store.togglePin(note: note)
+                    }
+                }
+                .keyboardShortcut("p", modifiers: [.command, .option])
+                .disabled(store.selectedNote == nil)
+
+                Button(store.selectedNote?.archived == true ? "Unarchive Note" : "Archive Note") {
+                    if let note = store.selectedNote {
+                        store.toggleArchive(note: note)
+                    }
+                }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .disabled(store.selectedNote == nil)
+
+                Divider()
+
+                Button("Toggle Markdown Preview") {
+                    store.shouldToggleMarkdownPreview = true
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .disabled(store.selectedNote == nil || store.selectedNote?.isList == true)
+
+                Button(store.selectedNote?.isList == true ? "Convert to Plain Text" : "Convert to Checklist") {
+                    if let note = store.selectedNote {
+                        store.toggleNoteType(note: note)
+                    }
+                }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+                .disabled(store.selectedNote == nil)
+
+                Divider()
+
+                Button("Change Note Color...") {
+                    store.shouldShowColorPicker = true
+                }
+                .keyboardShortcut("c", modifiers: [.control, .command])
+                .disabled(store.selectedNote == nil)
+
+                Menu("Note Color") {
+                    ForEach(["White", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink", "Red", "Orange", "Gray"], id: \.self) { colorName in
+                        Button(colorName) {
+                            if let note = store.selectedNote {
+                                store.changeColor(note: note, color: colorName)
+                            }
+                        }
+                    }
+                }
+                .disabled(store.selectedNote == nil)
+            }
+
+            CommandMenu("Go") {
+                Button("All Notes") {
+                    store.sidebarSelection = .folder(.all)
+                }
+                .keyboardShortcut("1", modifiers: .command)
+
+                Button("Quick Notes") {
+                    store.sidebarSelection = .folder(.quick)
+                }
+                .keyboardShortcut("2", modifiers: .command)
+
+                Button("Pinned") {
+                    store.sidebarSelection = .folder(.pinned)
+                }
+                .keyboardShortcut("3", modifiers: .command)
+
+                Button("Archive") {
+                    store.sidebarSelection = .folder(.archived)
+                }
+                .keyboardShortcut("4", modifiers: .command)
+
+                Button("Recently Deleted") {
+                    store.sidebarSelection = .folder(.trash)
+                }
+                .keyboardShortcut("5", modifiers: .command)
+
+                Divider()
+
+                Button("Next Note") {
+                    store.selectNextNote()
+                }
+                .keyboardShortcut(.downArrow, modifiers: .option)
+                .disabled(store.notes.isEmpty)
+
+                Button("Previous Note") {
+                    store.selectPreviousNote()
+                }
+                .keyboardShortcut(.upArrow, modifiers: .option)
+                .disabled(store.notes.isEmpty)
+
+                Button("Next Note in List") {
+                    store.selectNextNote()
+                }
+                .keyboardShortcut("]", modifiers: .command)
+                .disabled(store.notes.isEmpty)
+
+                Button("Previous Note in List") {
+                    store.selectPreviousNote()
+                }
+                .keyboardShortcut("[", modifiers: .command)
+                .disabled(store.notes.isEmpty)
+            }
         }
 
         MenuBarExtra("kNotes", systemImage: "note.text.badge.plus") {

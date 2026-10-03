@@ -31,13 +31,13 @@ A high-fidelity native macOS notes app powered by a Google Keep backend. Built i
 - Python 3.10+
 
 ### Option 1: Download Pre-built DMG
-Download the latest `kNotes-v0.1-macOS.dmg` from the [Releases](https://github.com/madhuraj0/KNotes/releases) page, open it, and drag `kNotes` to your Applications folder.
+Download the latest `kNotes-macos.dmg` from the [Releases](https://github.com/madhuraj0/kNotes/releases) page, open it, and drag `kNotes` to your Applications folder.
 
 ### Option 2: Build & Install from Source
 Clone the repository and run the automated installer:
 ```bash
-git clone https://github.com/madhuraj0/KNotes.git
-cd KNotes
+git clone https://github.com/madhuraj0/kNotes.git
+cd kNotes
 ./scripts/build_and_install.sh
 ```
 This compiles the release binary, sets up the local runtime, and installs the signed app to `/Applications/kNotes.app`.
@@ -53,13 +53,21 @@ open /Applications/kNotes.app
 
 | Shortcut | Action |
 |---|---|
-| `⌘N` | New Note |
+| `⌘N` | New Note (auto-focuses title) |
 | `⇧⌘N` | New Checklist |
 | `⌘F` | Search All Notes |
 | `⌘S` | Sync with Google Keep |
 | `⌘T` | New Tag / Label |
+| `⌘1` – `⌘5` | Navigate Folders (All, Quick, Pinned, Archive, Trash) |
+| `⌥↓` / `⌥↑` | Select Next / Previous Note (works anywhere) |
+| `⌘]` / `⌘[` | Next / Previous Note in List |
+| `⌘E` | Toggle Markdown Preview / Raw Editor |
+| `⇧⌘L` | Convert Checklist / Plain Text |
+| `⌥⌘P` | Pin / Unpin Note |
+| `⇧⌘A` | Archive / Unarchive Note |
+| `⌃⌘C` | Change Note Color |
 | `⌘,` | Google Keep Account Settings |
-| `⌘⌫` | Delete Note |
+| `⌘⌫` | Move Note to Trash / Delete Note |
 
 ---
 

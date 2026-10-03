@@ -196,7 +196,7 @@ public struct MenuBarQuickCaptureView: View {
             labels.append(sel)
         }
 
-        Task {
+        Task { @MainActor in
             do {
                 let created = try await APIClient.shared.createNote(
                     title: trimmedTitle,

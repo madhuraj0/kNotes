@@ -127,8 +127,19 @@ public struct ChecklistView: View {
             .strikethrough(item.checked, color: .secondary)
             .foregroundColor(item.checked ? .secondary : .primary)
             .focused($focusedItemId, equals: item.id)
+            .onKeyPress(.delete) {
+                if item.text.isEmpty && items.count > 1 {
+                    handleBackspaceOnEmptyItem(item)
+                    return .handled
+                }
+                return .ignored
+            }
             .onSubmit {
-                insertItemAfter(item)
+                if item.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    focusedItemId = nil
+                } else {
+                    insertItemAfter(item)
+                }
             }
 
             Spacer()
@@ -143,10 +154,26 @@ public struct ChecklistView: View {
             }
             .buttonStyle(.plain)
             .help("Delete item")
+            .accessibilityLabel("Delete checklist item")
         }
         .padding(.vertical, 3)
         .background(draggingItem?.id == item.id ? Color.accentColor.opacity(0.08) : Color.clear)
         .cornerRadius(6)
+    }
+
+    private func handleBackspaceOnEmptyItem(_ item: ChecklistItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        if index > 0 {
+            focusedItemId = items[index - 1].id
+        } else if index + 1 < items.count {
+            focusedItemId = items[index + 1].id
+        } else {
+            focusedItemId = nil
+        }
+        _ = withAnimation {
+            items.remove(at: index)
+        }
+        onUpdate()
     }
 
     private func insertItemAfter(_ item: ChecklistItem) {

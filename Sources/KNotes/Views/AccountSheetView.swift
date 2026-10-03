@@ -56,6 +56,8 @@ public struct AccountSheetView: View {
                             .foregroundColor(.secondary.opacity(0.8))
                     }
                     .buttonStyle(.plain)
+                    .focusEffectDisabled()
+                    .focusable(false)
                     .help("Close (Esc)")
                     .keyboardShortcut(.cancelAction)
                 }
@@ -283,6 +285,8 @@ public struct AccountSheetView: View {
                     .font(.system(size: 12))
                 }
                 .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .focusable(false)
 
                 Spacer()
 
@@ -301,6 +305,8 @@ public struct AccountSheetView: View {
                 }
                 .font(.system(size: 12))
                 .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .focusable(false)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

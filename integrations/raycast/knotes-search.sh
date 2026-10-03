@@ -11,7 +11,8 @@
 # @raycast.argument1 { "type": "text", "placeholder": "Search Query", "optional": true }
 
 QUERY="${1:-}"
-curl -s "http://127.0.0.1:8765/api/notes?query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$QUERY'))")" | python3 -c "
+encoded_query=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$QUERY")
+curl -s "http://127.0.0.1:8765/api/notes?query=$encoded_query" | python3 -c "
 import sys, json
 
 notes = json.load(sys.stdin)

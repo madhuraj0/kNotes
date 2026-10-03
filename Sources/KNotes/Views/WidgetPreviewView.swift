@@ -116,7 +116,7 @@ public struct WidgetPreviewView: View {
     private func commitQuickNote() {
         let trimmed = quickText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        Task {
+        Task { @MainActor in
             _ = try? await APIClient.shared.createNote(
                 title: trimmed,
                 text: "",

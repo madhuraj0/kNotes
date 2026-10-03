@@ -36,6 +36,11 @@ public final class NotesStore: ObservableObject {
     @Published public var showNewLabelSheet: Bool = false
     @Published public var errorMessage: String? = nil
 
+    @Published public var shouldFocusTitle: Bool = false
+    @Published public var shouldFocusSearch: Bool = false
+    @Published public var shouldToggleMarkdownPreview: Bool = false
+    @Published public var shouldShowColorPicker: Bool = false
+
     private var saveDebounceTask: Task<Void, Never>?
     private var searchDebounceTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
@@ -104,16 +109,34 @@ public final class NotesStore: ObservableObject {
                 label: selectedLabel,
                 query: searchQuery.isEmpty ? nil : searchQuery
             )
-            self.notes = fetched
-            SpotlightIndexer.shared.indexNotes(fetched)
+
+            // Protect pending autosaves on active note from being overwritten by stale server fetch
+            if let activeId = selectedNoteId,
+               saveDebounceTask != nil,
+               let localIndex = self.notes.firstIndex(where: { $0.id == activeId }) {
+                let localActive = self.notes[localIndex]
+                self.notes = fetched.map { note in
+                    if note.id == activeId {
+                        var merged = note
+                        merged.title = localActive.title
+                        merged.text = localActive.text
+                        merged.items = localActive.items
+                        return merged
+                    }
+                    return note
+                }
+            } else {
+                self.notes = fetched
+            }
+            SpotlightIndexer.shared.indexNotesIfChanged(fetched)
 
             // Keep selected note or select first
             if let selId = selectedNoteId {
-                if !fetched.contains(where: { $0.id == selId }) {
-                    selectedNoteId = fetched.first?.id
+                if !self.notes.contains(where: { $0.id == selId }) {
+                    selectedNoteId = self.notes.first?.id
                 }
             } else {
-                selectedNoteId = fetched.first?.id
+                selectedNoteId = self.notes.first?.id
             }
         } catch {
             print("[NotesStore] fetchNotes error: \(error)")
@@ -163,6 +186,8 @@ public final class NotesStore: ObservableObject {
                 )
                 self.notes.insert(newNote, at: 0)
                 self.selectedNoteId = newNote.id
+                self.shouldFocusTitle = true
+                SpotlightIndexer.shared.indexSingleNote(newNote)
                 await fetchStatus()
                 await fetchLabels()
             } catch {
@@ -189,8 +214,9 @@ public final class NotesStore: ObservableObject {
         saveDebounceTask?.cancel()
         saveDebounceTask = Task {
             try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
             do {
-                _ = try await APIClient.shared.updateNote(
+                let saved = try await APIClient.shared.updateNote(
                     id: currentNote.id,
                     title: currentNote.title,
                     text: currentNote.text,
@@ -203,9 +229,11 @@ public final class NotesStore: ObservableObject {
                     labels: currentNote.labels,
                     collaborators: currentNote.collaborators
                 )
+                SpotlightIndexer.shared.indexSingleNote(saved)
             } catch {
                 print("[NotesStore] Auto-save error: \(error)")
             }
+            self.saveDebounceTask = nil
         }
     }
 
@@ -376,6 +404,28 @@ public final class NotesStore: ObservableObject {
             } catch {
                 self.errorMessage = "Failed to restore note: \(error.localizedDescription)"
             }
+        }
+    }
+
+    public func selectNextNote() {
+        guard !notes.isEmpty else { return }
+        guard let currentId = selectedNoteId, let index = notes.firstIndex(where: { $0.id == currentId }) else {
+            selectedNoteId = notes.first?.id
+            return
+        }
+        if index + 1 < notes.count {
+            selectedNoteId = notes[index + 1].id
+        }
+    }
+
+    public func selectPreviousNote() {
+        guard !notes.isEmpty else { return }
+        guard let currentId = selectedNoteId, let index = notes.firstIndex(where: { $0.id == currentId }) else {
+            selectedNoteId = notes.first?.id
+            return
+        }
+        if index > 0 {
+            selectedNoteId = notes[index - 1].id
         }
     }
 

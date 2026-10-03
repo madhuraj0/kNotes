@@ -22,7 +22,7 @@ public struct GoogleSignInWebView: NSViewRepresentable {
 
     public func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = WKWebsiteDataStore.default()
+        config.websiteDataStore = WKWebsiteDataStore.nonPersistent()
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -74,8 +74,11 @@ public struct GoogleSignInWebView: NSViewRepresentable {
 
         private func startCookiePolling(_ webView: WKWebView) {
             checkTimer?.invalidate()
-            checkTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self, weak webView] _ in
-                guard let self = self, let wv = webView, !self.tokenFound else { return }
+            checkTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self, weak webView] timer in
+                guard let self = self, let wv = webView, !self.tokenFound else {
+                    timer.invalidate()
+                    return
+                }
                 self.checkCookies(wv)
             }
         }

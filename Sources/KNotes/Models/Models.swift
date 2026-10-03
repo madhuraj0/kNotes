@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-public struct ChecklistItem: Identifiable, Codable, Equatable, Hashable {
+public struct ChecklistItem: Identifiable, Codable, Equatable, Hashable, Sendable {
     public var id: String?
     public var text: String
     public var checked: Bool
@@ -24,7 +24,7 @@ public struct ChecklistItem: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
-public struct Note: Identifiable, Codable, Equatable, Hashable {
+public struct Note: Identifiable, Codable, Equatable, Hashable, Sendable {
     public var id: String
     public var title: String
     public var text: String
@@ -143,50 +143,27 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
     }
 
     public var formattedDate: String {
-        guard let dateString = updated ?? created else {
+        guard let dateString = updated ?? created,
+              let d = NoteDateFormatters.parse(dateString) else {
             return "Just now"
         }
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var date = isoFormatter.date(from: dateString)
-        if date == nil {
-            isoFormatter.formatOptions = [.withInternetDateTime]
-            date = isoFormatter.date(from: dateString)
-        }
-
-        guard let d = date else { return "Recent" }
 
         let calendar = Calendar.current
         if calendar.isDateInToday(d) {
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return formatter.string(from: d)
+            return NoteDateFormatters.timeShort.string(from: d)
         } else if calendar.isDateInYesterday(d) {
             return "Yesterday"
         } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "M/d/yy"
-            return formatter.string(from: d)
+            return NoteDateFormatters.dateShort.string(from: d)
         }
     }
 
     public var headerDate: String {
-        guard let dateString = updated ?? created else {
+        guard let dateString = updated ?? created,
+              let d = NoteDateFormatters.parse(dateString) else {
             return "Today"
         }
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var date = isoFormatter.date(from: dateString)
-        if date == nil {
-            isoFormatter.formatOptions = [.withInternetDateTime]
-            date = isoFormatter.date(from: dateString)
-        }
-        guard let d = date else { return "Today" }
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .short
-        return formatter.string(from: d)
+        return NoteDateFormatters.headerFull.string(from: d)
     }
 
     public var swiftUIColor: Color {
@@ -252,8 +229,13 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
         case "Pink": return .pink
         case "Brown": return Color(red: 0.6, green: 0.4, blue: 0.2)
         case "Gray": return .gray
-        default: return Color.accentColor
+        case "White": return .secondary
+        default: return .secondary
         }
+    }
+
+    public var isCustomColored: Bool {
+        !color.isEmpty && color != "White"
     }
 
     public static func swatchColor(for name: String) -> Color {
@@ -274,7 +256,7 @@ public struct Note: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
-public struct LabelItem: Identifiable, Codable, Equatable, Hashable {
+public struct LabelItem: Identifiable, Codable, Equatable, Hashable, Sendable {
     public var id: String
     public var name: String
 
@@ -284,7 +266,7 @@ public struct LabelItem: Identifiable, Codable, Equatable, Hashable {
     }
 }
 
-public struct AppStatus: Codable, Equatable {
+public struct AppStatus: Codable, Equatable, Sendable {
     public var authenticated: Bool
     public var email: String?
     public var syncStatus: String
@@ -320,7 +302,7 @@ public struct AppStatus: Codable, Equatable {
     }
 }
 
-public enum Folder: String, CaseIterable, Identifiable, Hashable {
+public enum Folder: String, CaseIterable, Identifiable, Hashable, Sendable {
     case all = "all"
     case quick = "quick"
     case pinned = "pinned"
@@ -360,7 +342,7 @@ public enum Folder: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-public enum SidebarItem: Hashable, Identifiable {
+public enum SidebarItem: Hashable, Identifiable, Sendable {
     case folder(Folder)
     case tag(String)
 
@@ -378,3 +360,42 @@ public enum SidebarItem: Hashable, Identifiable {
         }
     }
 }
+
+public enum NoteDateFormatters {
+    public static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    public static let isoStandard: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    public static let timeShort: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
+    public static let dateShort: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "M/d/yy"
+        return f
+    }()
+
+    public static let headerFull: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .long
+        f.timeStyle = .short
+        return f
+    }()
+
+    public static func parse(_ string: String) -> Date? {
+        if let d = isoFractional.date(from: string) { return d }
+        return isoStandard.date(from: string)
+    }
+}
+

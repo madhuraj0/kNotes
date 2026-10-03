@@ -2,19 +2,12 @@ import SwiftUI
 
 public struct NotesListView: View {
     @ObservedObject var store: NotesStore
-
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var isListFocused: Bool
+    @State private var hoveredNoteId: String? = nil
 
     public init(store: NotesStore) {
         self.store = store
-    }
-
-    private var pinnedNotes: [Note] {
-        store.notes.filter { $0.pinned }
-    }
-
-    private var regularNotes: [Note] {
-        store.notes.filter { !$0.pinned }
     }
 
     private var currentSectionTitle: String {
@@ -41,6 +34,7 @@ public struct NotesListView: View {
             .padding(.bottom, 8)
 
             Divider()
+                .opacity(0.6)
 
             // Notes list or Empty state
             if store.notes.isEmpty {
@@ -61,22 +55,40 @@ public struct NotesListView: View {
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                List {
-                    if !pinnedNotes.isEmpty && store.selectedFolder != .pinned {
-                        Section(header: Text("PINNED").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
-                            ForEach(pinnedNotes) { note in
-                                noteRow(for: note)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 6) {
+                            ForEach(store.notes) { note in
+                                noteCard(for: note)
+                                    .id(note.id)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                    }
+                    .focusable()
+                    .focusEffectDisabled()
+                    .focused($isListFocused)
+                    .onKeyPress(.downArrow) {
+                        store.selectNextNote()
+                        return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        store.selectPreviousNote()
+                        return .handled
+                    }
+                    .onKeyPress(.return) {
+                        store.shouldFocusTitle = true
+                        return .handled
+                    }
+                    .onChange(of: store.selectedNoteId) { _, newId in
+                        if let newId = newId {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                proxy.scrollTo(newId, anchor: .center)
                             }
                         }
                     }
-
-                    Section(header: Text((!pinnedNotes.isEmpty && store.selectedFolder != .pinned) ? "NOTES" : "").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)) {
-                        ForEach(store.selectedFolder == .pinned ? pinnedNotes : regularNotes) { note in
-                            noteRow(for: note)
-                        }
-                    }
                 }
-                .listStyle(.inset)
             }
         }
         .frame(minWidth: 240, idealWidth: 280)
@@ -97,6 +109,7 @@ public struct NotesListView: View {
                     Circle()
                         .fill(store.status?.authenticated == true ? Color.green : Color.orange)
                         .frame(width: 7, height: 7)
+                        .shadow(color: (store.status?.authenticated == true ? Color.green : Color.orange).opacity(0.6), radius: 3)
 
                     Text(store.status?.authenticated == true ? (store.status?.email ?? "Google Keep") : "Local Mode")
                         .font(.system(size: 11, weight: .semibold))
@@ -116,6 +129,8 @@ public struct NotesListView: View {
                 )
             }
             .buttonStyle(.plain)
+            .focusEffectDisabled()
+            .focusable(false)
             .help("Google Keep Account Settings (⌘,)")
 
             Button {
@@ -128,112 +143,147 @@ public struct NotesListView: View {
                     .animation(store.isSyncing ? Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default, value: store.isSyncing)
             }
             .buttonStyle(.plain)
+            .focusEffectDisabled()
+            .focusable(false)
             .help("Sync Now (⌘S)")
         }
     }
 
-    private func noteRow(for note: Note) -> some View {
+    // MARK: - Liquid Glass Note Card
+    private func noteCard(for note: Note) -> some View {
         let isSelected = store.selectedNoteId == note.id
+        let isHovered = hoveredNoteId == note.id
 
-        return Button {
-            store.selectedNoteId = note.id
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .top, spacing: 6) {
-                    // Color indicator dot
-                    if note.color != "White" {
-                        Circle()
-                            .fill(note.accentTint)
-                            .frame(width: 7, height: 7)
-                            .padding(.top, 4)
-                    }
-
-                    // Title - Always crisp primary contrast in both light and dark mode
-                    Text(note.displayTitle)
-                        .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    // Pin indicator
-                    if note.pinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 10))
-                            .foregroundColor(.orange)
-                    }
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .top, spacing: 6) {
+                // Color indicator dot with subtle glow
+                if note.color != "White" {
+                    Circle()
+                        .fill(note.accentTint)
+                        .frame(width: 7, height: 7)
+                        .shadow(color: note.accentTint.opacity(0.6), radius: 3)
+                        .padding(.top, 4)
                 }
 
-                // Date, snippet, and checklist icon
-                HStack(spacing: 5) {
-                    if note.isList {
-                        Image(systemName: "checklist")
-                            .font(.system(size: 10))
-                            .foregroundColor(isSelected ? .primary.opacity(0.85) : .secondary)
-                    }
+                // Title - Always crisp primary contrast in both light and dark mode
+                Text(note.displayTitle)
+                    .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
 
-                    Text(note.formattedDate)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(isSelected ? .primary.opacity(0.85) : .secondary)
+                Spacer()
 
-                    Text("•")
+                // Pin indicator
+                if note.pinned {
+                    Image(systemName: "pin.fill")
                         .font(.system(size: 10))
-                        .foregroundColor(.secondary.opacity(0.6))
-
-                    Text(note.previewSnippet)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-
-                // Labels & Collaborators
-                if !note.labels.isEmpty || !note.collaborators.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(note.labels, id: \.self) { labelName in
-                            HStack(spacing: 2) {
-                                Text("#")
-                                    .font(.system(size: 9, weight: .bold))
-                                Text(labelName)
-                                    .font(.system(size: 10))
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.12))
-                            .foregroundColor(.secondary)
-                            .cornerRadius(6)
-                        }
-
-                        if !note.collaborators.isEmpty {
-                            HStack(spacing: 2) {
-                                Image(systemName: "person.2.fill")
-                                    .font(.system(size: 8))
-                                Text("\(note.collaborators.count)")
-                                    .font(.system(size: 9, weight: .semibold))
-                            }
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.12))
-                            .foregroundColor(.blue)
-                            .cornerRadius(6)
-                        }
-                    }
-                    .padding(.top, 2)
+                        .foregroundColor(.orange)
+                        .shadow(color: Color.orange.opacity(0.4), radius: 2)
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .contentShape(Rectangle())
+
+            // Date, snippet, and checklist icon
+            HStack(spacing: 5) {
+                if note.isList {
+                    Image(systemName: "checklist")
+                        .font(.system(size: 10))
+                        .foregroundColor(isSelected ? .primary.opacity(0.9) : .secondary)
+                }
+
+                Text(note.formattedDate)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(isSelected ? .primary.opacity(0.9) : .secondary)
+
+                Text("•")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary.opacity(0.6))
+
+                Text(note.previewSnippet)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            // Labels & Collaborators
+            if !note.labels.isEmpty || !note.collaborators.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(note.labels, id: \.self) { labelName in
+                        HStack(spacing: 2) {
+                            Text("#")
+                                .font(.system(size: 9, weight: .bold))
+                            Text(labelName)
+                                .font(.system(size: 10))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                        )
+                        .foregroundColor(.secondary)
+                    }
+
+                    if !note.collaborators.isEmpty {
+                        HStack(spacing: 2) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 8))
+                            Text("\(note.collaborators.count)")
+                                .font(.system(size: 9, weight: .semibold))
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.blue.opacity(0.12), in: Capsule())
+                        .foregroundColor(.blue)
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .buttonStyle(.plain)
-        .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? (colorScheme == .dark ? Color.yellow.opacity(0.24) : Color.yellow.opacity(0.20)) : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(isSelected ? (colorScheme == .dark ? Color.yellow.opacity(0.42) : Color.yellow.opacity(0.35)) : Color.clear, lineWidth: 0.8)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .background {
+            if isSelected {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(colorScheme == .dark ? Color.yellow.opacity(0.20) : Color.yellow.opacity(0.18))
+                }
+            } else if isHovered {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(0.05))
+            } else {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.primary.opacity(0.02))
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(
+                    isSelected
+                        ? LinearGradient(colors: [Color.yellow.opacity(0.65), Color.orange.opacity(0.35)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [Color.primary.opacity(isHovered ? 0.12 : 0.05), Color.primary.opacity(isHovered ? 0.06 : 0.02)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: isSelected ? 1.0 : 0.6
                 )
         )
+        .shadow(
+            color: isSelected
+                ? Color.yellow.opacity(colorScheme == .dark ? 0.14 : 0.09)
+                : (isHovered ? Color.black.opacity(0.04) : Color.clear),
+            radius: isSelected ? 8 : 4,
+            x: 0,
+            y: isSelected ? 2 : 1
+        )
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                hoveredNoteId = hovering ? note.id : nil
+            }
+        }
+        .onTapGesture {
+            store.selectedNoteId = note.id
+            isListFocused = true
+        }
         .contextMenu {
             Button {
                 store.togglePin(note: note)

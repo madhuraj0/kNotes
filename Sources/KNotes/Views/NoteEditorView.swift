@@ -65,9 +65,11 @@ public struct NoteEditorView: View {
                                             }
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 3)
-                                            .background(Color.yellow.opacity(0.2))
+                                            .background(.ultraThinMaterial, in: Capsule())
+                                            .overlay(
+                                                Capsule().stroke(Color.orange.opacity(0.35), lineWidth: 0.8)
+                                            )
                                             .foregroundColor(.orange)
-                                            .cornerRadius(6)
                                         }
 
                                         // Labels
@@ -87,9 +89,11 @@ public struct NoteEditorView: View {
                                             }
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 3)
-                                            .background(Color.secondary.opacity(0.12))
+                                            .background(.ultraThinMaterial, in: Capsule())
+                                            .overlay(
+                                                Capsule().stroke(Color.primary.opacity(0.08), lineWidth: 0.6)
+                                            )
                                             .foregroundColor(.secondary)
-                                            .cornerRadius(6)
                                         }
 
                                         // Collaborator Pills
@@ -109,9 +113,11 @@ public struct NoteEditorView: View {
                                             }
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 3)
-                                            .background(Color.accentColor.opacity(0.12))
+                                            .background(.ultraThinMaterial, in: Capsule())
+                                            .overlay(
+                                                Capsule().stroke(Color.accentColor.opacity(0.2), lineWidth: 0.6)
+                                            )
                                             .foregroundColor(.accentColor)
-                                            .cornerRadius(6)
                                         }
                                     }
                                     .padding(.horizontal, 24)
@@ -154,23 +160,80 @@ public struct NoteEditorView: View {
                         .padding(.bottom, 40)
                     }
                 }
-                .background(note.dynamicBackgroundColor(isDark: colorScheme == .dark).opacity(colorScheme == .dark ? 0.45 : 0.35))
+                .background {
+                    ZStack {
+                        if colorScheme == .light {
+                            Color(NSColor.textBackgroundColor)
+                        } else {
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                        }
+
+                        if note.isCustomColored {
+                            LinearGradient(
+                                colors: [
+                                    note.dynamicBackgroundColor(isDark: colorScheme == .dark).opacity(colorScheme == .dark ? 0.35 : 0.40),
+                                    note.dynamicBackgroundColor(isDark: colorScheme == .dark).opacity(colorScheme == .dark ? 0.12 : 0.10),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        }
+                    }
+                }
                 .onAppear {
                     loadNoteData(note)
+                    if store.shouldFocusTitle {
+                        triggerFocusTitle()
+                    }
                 }
                 .onChange(of: store.selectedNoteId) { _, _ in
                     if let n = store.selectedNote {
                         loadNoteData(n)
                     }
+                    if store.shouldFocusTitle {
+                        triggerFocusTitle()
+                    }
+                }
+                .onChange(of: store.shouldFocusTitle) { _, shouldFocus in
+                    if shouldFocus {
+                        triggerFocusTitle()
+                    }
+                }
+                .onChange(of: store.shouldToggleMarkdownPreview) { _, shouldToggle in
+                    if shouldToggle {
+                        store.shouldToggleMarkdownPreview = false
+                        if !note.isList {
+                            isMarkdownPreview.toggle()
+                        }
+                    }
+                }
+                .onChange(of: store.shouldShowColorPicker) { _, shouldShow in
+                    if shouldShow {
+                        store.shouldShowColorPicker = false
+                        showColorPopover = true
+                    }
+                }
+                .onExitCommand {
+                    editorFocus = nil
                 }
                 .toolbar {
                     editorToolbar(for: note)
                 }
             } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 40))
-                        .foregroundColor(.secondary.opacity(0.4))
+                VStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 72, height: 72)
+                            .overlay(
+                                Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
+                            )
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 30))
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
                     Text("No Note Selected")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.secondary)
@@ -178,13 +241,22 @@ public struct NoteEditorView: View {
                         store.createNote(isList: false)
                     }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.background)
+                .background(.ultraThinMaterial)
                 .toolbar {
                     editorToolbar(for: nil)
                 }
             }
+        }
+    }
+
+    private func triggerFocusTitle() {
+        store.shouldFocusTitle = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            editorFocus = .title
         }
     }
 
@@ -205,6 +277,7 @@ public struct NoteEditorView: View {
                     .font(.system(size: 13, weight: .medium))
             }
             .help("New Note (⌘N)")
+            .accessibilityLabel("New Note")
 
             Button {
                 store.createNote(isList: true)
@@ -213,6 +286,7 @@ public struct NoteEditorView: View {
                     .font(.system(size: 13, weight: .medium))
             }
             .help("New Checklist (⇧⌘N)")
+            .accessibilityLabel("New Checklist")
         }
 
         // 2. Principal: Color Palette in the middle of the top bar
@@ -224,7 +298,7 @@ public struct NoteEditorView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "paintpalette.fill")
                             .font(.system(size: 13))
-                            .foregroundColor(note.accentTint)
+                            .foregroundColor(note.isCustomColored ? note.accentTint : .secondary)
                         Image(systemName: "chevron.down")
                             .font(.system(size: 7, weight: .bold))
                             .foregroundColor(.secondary)
@@ -238,7 +312,8 @@ public struct NoteEditorView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .help("Note Color")
+                .help("Note Color (⌃⌘C)")
+                .accessibilityLabel("Change Note Color")
                 .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
                     ColorPalettePickerView(selectedColor: note.color) { newColor in
                         store.changeColor(note: note, color: newColor)
@@ -258,7 +333,8 @@ public struct NoteEditorView: View {
                     Image(systemName: note.isList ? "text.alignleft" : "checklist")
                         .foregroundColor(note.isList ? .accentColor : .secondary)
                 }
-                .help(note.isList ? "Convert to Plain Text" : "Convert to Checklist")
+                .help(note.isList ? "Convert to Plain Text (⇧⌘L)" : "Convert to Checklist (⇧⌘L)")
+                .accessibilityLabel(note.isList ? "Convert to Plain Text" : "Convert to Checklist")
 
                 // Rich Markdown Preview Toggle (for text notes)
                 if !note.isList {
@@ -268,7 +344,8 @@ public struct NoteEditorView: View {
                         Image(systemName: isMarkdownPreview ? "pencil" : "eye")
                             .foregroundColor(isMarkdownPreview ? .accentColor : .secondary)
                     }
-                    .help(isMarkdownPreview ? "Edit Raw Markdown" : "Rich Markdown Preview")
+                    .help(isMarkdownPreview ? "Edit Raw Markdown (⌘E)" : "Rich Markdown Preview (⌘E)")
+                    .accessibilityLabel(isMarkdownPreview ? "Edit Raw Markdown" : "Rich Markdown Preview")
                 }
 
                 // Tags Menu
@@ -293,6 +370,7 @@ public struct NoteEditorView: View {
                     Image(systemName: "tag")
                 }
                 .help("Tags")
+                .accessibilityLabel("Manage Note Tags")
 
                 // Google Keep Collaborators Popover
                 Button {
@@ -302,6 +380,7 @@ public struct NoteEditorView: View {
                         .foregroundColor(!note.collaborators.isEmpty ? .accentColor : .secondary)
                 }
                 .help("Google Keep Collaborators")
+                .accessibilityLabel("Google Keep Collaborators")
                 .popover(isPresented: $showSharePopover, arrowEdge: .bottom) {
                     CollaboratorsPopoverView(note: note, store: store, isPresented: $showSharePopover)
                 }
@@ -315,6 +394,7 @@ public struct NoteEditorView: View {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .help("Share Note (macOS Share Sheet)")
+                .accessibilityLabel("Share Note")
 
                 // Archive / Unarchive
                 Button {
@@ -323,7 +403,8 @@ public struct NoteEditorView: View {
                     Image(systemName: note.archived ? "archivebox.fill" : "archivebox")
                         .foregroundColor(note.archived ? .accentColor : .secondary)
                 }
-                .help(note.archived ? "Unarchive Note" : "Archive Note")
+                .help(note.archived ? "Unarchive Note (⇧⌘A)" : "Archive Note (⇧⌘A)")
+                .accessibilityLabel(note.archived ? "Unarchive Note" : "Archive Note")
 
                 // Pin / Unpin
                 Button {
@@ -332,7 +413,8 @@ public struct NoteEditorView: View {
                     Image(systemName: note.pinned ? "pin.fill" : "pin")
                         .foregroundColor(note.pinned ? .orange : .secondary)
                 }
-                .help(note.pinned ? "Unpin Note" : "Pin Note")
+                .help(note.pinned ? "Unpin Note (⌥⌘P)" : "Pin Note (⌥⌘P)")
+                .accessibilityLabel(note.pinned ? "Unpin Note" : "Pin Note")
 
                 // Delete Note
                 Button {
@@ -340,7 +422,8 @@ public struct NoteEditorView: View {
                 } label: {
                     Image(systemName: "trash")
                 }
-                .help("Delete Note (⌘⌫)")
+                .help(note.trashed ? "Delete Note Permanently (⌘⌫)" : "Move Note to Trash (⌘⌫)")
+                .accessibilityLabel(note.trashed ? "Delete Note Permanently" : "Move Note to Trash")
             }
 
             // Continuously Expanded Liquid Glass Search Bar
@@ -420,6 +503,8 @@ struct CollaboratorsPopoverView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .focusable(false)
             }
 
             Text("Share this note with Google accounts. They will see edits in their Google Keep.")

@@ -70,6 +70,9 @@ class KeepManager:
 
     def __init__(self) -> None:
         self.lock = threading.RLock()
+        self.sync_lock = threading.Lock()
+        self._sync_timer: Optional[threading.Timer] = None
+        self._sync_timer_lock = threading.Lock()
         self.keep = gkeepapi.Keep()
         self.authenticated = False
         self.email: Optional[str] = None
@@ -78,6 +81,17 @@ class KeepManager:
         self.last_synced: Optional[str] = None
         self._init_storage()
         self._start_periodic_sync()
+
+    def schedule_bg_sync(self, delay: float = 4.0) -> None:
+        """Debounce background sync so rapid user edits coalesce into a single sync."""
+        if not self.authenticated:
+            return
+        with self._sync_timer_lock:
+            if self._sync_timer and self._sync_timer.is_alive():
+                self._sync_timer.cancel()
+            self._sync_timer = threading.Timer(delay, self._safe_bg_sync)
+            self._sync_timer.daemon = True
+            self._sync_timer.start()
 
     def _start_periodic_sync(self) -> None:
         """Run periodic background sync every 60 seconds when online."""
@@ -222,13 +236,12 @@ class KeepManager:
                 pass
             note_dict = self._node_to_response(node).model_dump()
             note_dict["archived_at"] = datetime.now(timezone.utc).isoformat()
-            archive_file = archive_dir / f"{node.id}.json"
-            with open(archive_file, "w", encoding="utf-8") as f:
+            clean_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "", str(node.id)).replace("..", "")
+            archive_file = archive_dir / f"{clean_id}.json"
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+            fd = os.open(archive_file, flags, 0o600)
+            with open(fd, "w", encoding="utf-8") as f:
                 json.dump(note_dict, f, indent=2)
-            try:
-                os.chmod(archive_file, 0o600)
-            except OSError:
-                pass
             logger.info("Archived permanently deleted note %s to %s", node.id, archive_file)
         except Exception as e:
             logger.warning("Failed to write trash archive for note %s: %s", node.id, e)
@@ -300,18 +313,16 @@ class KeepManager:
                         pass
 
                 tmp_file = config.STATE_FILE.with_suffix(".tmp")
-                with open(tmp_file, "w", encoding="utf-8") as f:
+                flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+                fd = os.open(tmp_file, flags, 0o600)
+                with open(fd, "w", encoding="utf-8") as f:
                     json.dump(state, f)
-                try:
-                    os.chmod(tmp_file, 0o600)
-                except OSError:
-                    pass
                 tmp_file.replace(config.STATE_FILE)
             except Exception as e:
                 logger.error("Failed to save state to disk: %s", e)
 
     def _save_session(self, email: str, master_token: str) -> None:
-        """Persist session credentials with restricted permissions (0600)."""
+        """Persist session credentials with restricted permissions (0600) atomically."""
         config.ensure_secure_dir()
         tmp_file = config.SESSION_FILE.with_suffix(".tmp")
         data = {
@@ -319,12 +330,10 @@ class KeepManager:
             "master_token": master_token,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
-        with open(tmp_file, "w", encoding="utf-8") as f:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(tmp_file, flags, 0o600)
+        with open(fd, "w", encoding="utf-8") as f:
             json.dump(data, f)
-        try:
-            os.chmod(tmp_file, 0o600)
-        except OSError:
-            pass
         tmp_file.replace(config.SESSION_FILE)
 
     def _clear_session(self) -> None:
@@ -424,36 +433,43 @@ class KeepManager:
 
     def sync(self, resync: bool = False) -> Tuple[bool, str]:
         """Trigger sync with Google Keep safely and non-destructively."""
-        with self.lock:
-            if not self.authenticated:
-                return True, "Working in local mode (not connected to Google Keep)."
+        if not self.authenticated:
+            return True, "Working in local mode (not connected to Google Keep)."
 
+        if not self.sync_lock.acquire(blocking=False):
+            return True, "Sync already in progress."
+
+        try:
             self.sync_status = "syncing"
-            try:
-                if resync:
-                    staging_keep = gkeepapi.Keep()
-                    staging_keep.authenticate(self.email, self.master_token, state=None, sync=True)
+            if resync:
+                staging_keep = gkeepapi.Keep()
+                staging_keep.authenticate(self.email, self.master_token, state=None, sync=True)
 
-                    staged_count = len(list(staging_keep.all()))
+                staged_count = len(list(staging_keep.all()))
+                with self.lock:
                     current_count = len(list(self.keep.all()))
-                    if staged_count == 0 and current_count > 0:
-                        logger.warning("Resync returned 0 notes while current cache has %d notes; preserving current cache", current_count)
-                        self.sync_status = "synced"
-                        return True, "Resync verified: preserved existing notes."
+                if staged_count == 0 and current_count > 0:
+                    logger.warning("Resync returned 0 notes while current cache has %d notes; preserving current cache", current_count)
+                    self.sync_status = "synced"
+                    return True, "Resync verified: preserved existing notes."
 
+                with self.lock:
                     self._merge_offline_notes(self.keep, staging_keep)
                     self.keep = staging_keep
-                else:
+            else:
+                with self.lock:
                     self.keep.sync(resync=False)
 
-                self.sync_status = "synced"
-                self.last_synced = datetime.now(timezone.utc).isoformat()
-                self._save_state_to_disk()
-                return True, "Successfully synced with Google Keep."
-            except Exception as e:
-                self.sync_status = "error"
-                logger.error("Sync failed: %s", e)
-                return False, f"Sync error: {str(e)}"
+            self.sync_status = "synced"
+            self.last_synced = datetime.now(timezone.utc).isoformat()
+            self._save_state_to_disk()
+            return True, "Successfully synced with Google Keep."
+        except Exception as e:
+            self.sync_status = "error"
+            logger.error("Sync failed: %s", e)
+            return False, f"Sync error: {str(e)}"
+        finally:
+            self.sync_lock.release()
 
     def get_status(self) -> StatusResponse:
         """Get current system status and counts."""
@@ -639,9 +655,8 @@ class KeepManager:
 
             self._save_state_to_disk()
 
-            # Background sync if connected
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
+            # Debounced background sync if connected
+            self.schedule_bg_sync()
 
             return self._node_to_response(node)
 
@@ -737,10 +752,7 @@ class KeepManager:
                     node.labels.add(lbl)
 
             self._save_state_to_disk()
-
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
-
+            self.schedule_bg_sync()
             return self._node_to_response(node)
 
     def delete_note(self, note_id: str) -> bool:
@@ -757,10 +769,7 @@ class KeepManager:
                 node.trash()
 
             self._save_state_to_disk()
-
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
-
+            self.schedule_bg_sync()
             return True
 
     def untrash_note(self, note_id: str) -> Optional[NoteResponse]:
@@ -771,10 +780,7 @@ class KeepManager:
                 return None
             node.untrash()
             self._save_state_to_disk()
-
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
-
+            self.schedule_bg_sync()
             return self._node_to_response(node)
 
     def list_labels(self) -> List[Dict[str, str]]:
@@ -790,8 +796,7 @@ class KeepManager:
                 return {"id": existing.id, "name": existing.name}
             lbl = self.keep.createLabel(name)
             self._save_state_to_disk()
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
+            self.schedule_bg_sync()
             return {"id": lbl.id, "name": lbl.name}
 
     def delete_label(self, label_id: str) -> bool:
@@ -802,8 +807,7 @@ class KeepManager:
                 return False
             self.keep.deleteLabel(lbl)
             self._save_state_to_disk()
-            if self.authenticated:
-                threading.Thread(target=self._safe_bg_sync, daemon=True).start()
+            self.schedule_bg_sync()
             return True
 
     def _safe_bg_sync(self) -> None:

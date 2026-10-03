@@ -16,7 +16,6 @@ sys.path.insert(0, str(project_dir / "backend"))
 candidate_site_packages = [
     project_dir / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
     Path.home() / ".knotes" / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
-    Path("/Users/madhuraj/Downloads/code/KNotes/.venv/lib/python3.12/site-packages"),
 ]
 for sp in candidate_site_packages:
     if sp.exists() and str(sp) not in sys.path:
@@ -80,23 +79,24 @@ def main():
         print(f"✓ Authentication SUCCESSFUL!")
         print(f"✓ Found {len(notes)} notes in your Google Keep account.")
 
-        # Save session to ~/.knotes/session.json
+        # Save session to ~/.knotes/session.json with atomic 0600 mode
         config.ensure_secure_dir()
         session_data = {
             "email": email,
             "master_token": master_token,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
-        with open(config.SESSION_FILE, "w", encoding="utf-8") as f:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd_session = os.open(config.SESSION_FILE, flags, 0o600)
+        with open(fd_session, "w", encoding="utf-8") as f:
             json.dump(session_data, f)
-        config.SESSION_FILE.chmod(0o600)
         print(f"✓ Saved session to {config.SESSION_FILE} (permissions 0600)")
 
         # Save Keep state so KNotes loads it immediately
         state = keep.dump()
-        with open(config.STATE_FILE, "w", encoding="utf-8") as f:
+        fd_state = os.open(config.STATE_FILE, flags, 0o600)
+        with open(fd_state, "w", encoding="utf-8") as f:
             json.dump(state, f)
-        config.STATE_FILE.chmod(0o600)
         print(f"✓ Saved Keep notes cache to {config.STATE_FILE}")
 
         print("\n" + "=" * 60)

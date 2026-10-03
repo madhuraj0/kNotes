@@ -1,8 +1,10 @@
 import SwiftUI
 
 public struct MainView: View {
-    @StateObject private var store = NotesStore.shared
+    @EnvironmentObject private var store: NotesStore
     @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @SceneStorage("savedSelectedNoteId") private var savedSelectedNoteId: String = ""
+    @SceneStorage("savedSidebarFolder") private var savedSidebarFolder: String = "all"
 
     public init() {}
 
@@ -19,8 +21,33 @@ public struct MainView: View {
         .navigationSplitViewStyle(.balanced)
         .accentColor(Color(red: 0.95, green: 0.72, blue: 0.15))
         .frame(minWidth: 800, minHeight: 500)
+        .background {
+            Button("") {
+                if let note = store.selectedNote {
+                    store.deleteNote(note: note)
+                }
+            }
+            .keyboardShortcut(.deleteForward, modifiers: .command)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .disabled(store.selectedNote == nil)
+        }
         .task {
             await store.initialize()
+            if !savedSidebarFolder.isEmpty, let folder = Folder(rawValue: savedSidebarFolder) {
+                store.sidebarSelection = .folder(folder)
+            }
+            if !savedSelectedNoteId.isEmpty && store.notes.contains(where: { $0.id == savedSelectedNoteId }) {
+                store.selectedNoteId = savedSelectedNoteId
+            }
+        }
+        .onChange(of: store.selectedNoteId) { _, newId in
+            if let newId = newId {
+                savedSelectedNoteId = newId
+            }
+        }
+        .onChange(of: store.selectedFolder) { _, newFolder in
+            savedSidebarFolder = newFolder.rawValue
         }
         .sheet(isPresented: $store.showAccountSheet) {
             AccountSheetView(store: store)

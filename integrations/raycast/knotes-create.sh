@@ -15,13 +15,13 @@ TITLE="$1"
 CONTENT="${2:-}"
 
 payload=$(python3 -c "
-import json
+import sys, json
 print(json.dumps({
-    'title': '''$TITLE''',
-    'text': '''$CONTENT''',
+    'title': sys.argv[1],
+    'text': sys.argv[2],
     'labels': ['Quick Notes']
 }))
-")
+" "$TITLE" "$CONTENT")
 
 res=$(curl -s -X POST "http://127.0.0.1:8765/api/notes" -H "Content-Type: application/json" -d "$payload")
 echo "✓ Note created in KNotes & Google Keep!"

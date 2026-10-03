@@ -64,11 +64,12 @@ public final class ProcessManager {
 
         let candidatePythonPaths = [
             "\(home)/.knotes/venv/bin/python3",
-            "\(home)/Downloads/code/KNotes/.venv/bin/python3",
             Bundle.main.resourcePath.map { "\($0)/backend/.venv/bin/python3" },
             "\(currentDir)/.venv/bin/python3",
             "/opt/homebrew/bin/python3.12",
-            "/opt/homebrew/bin/python3"
+            "/opt/homebrew/bin/python3",
+            "/usr/local/bin/python3",
+            "/usr/bin/python3"
         ].compactMap { $0 }
 
         var pythonPath: String?
@@ -87,7 +88,6 @@ public final class ProcessManager {
         let candidateScriptPaths = [
             Bundle.main.resourcePath.map { "\($0)/backend/run.py" },
             "\(home)/.knotes/backend/run.py",
-            "\(home)/Downloads/code/KNotes/backend/run.py",
             "\(currentDir)/backend/run.py"
         ].compactMap { $0 }
 
@@ -110,15 +110,23 @@ public final class ProcessManager {
 
         var env = ProcessInfo.processInfo.environment
         env["PYTHONUNBUFFERED"] = "1"
-        env["PATH"] = "\(home)/.knotes/venv/bin:\(home)/Downloads/code/KNotes/.venv/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+        env["PATH"] = "\(home)/.knotes/venv/bin:\(currentDir)/.venv/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         if selectedPython.contains("venv") {
             let venvDir = URL(fileURLWithPath: selectedPython).deletingLastPathComponent().deletingLastPathComponent().path
             env["VIRTUAL_ENV"] = venvDir
         }
         process.environment = env
 
-        // Redirect stdout/stderr to ~/.knotes/backend.log
+        // Redirect stdout/stderr to ~/.knotes/backend.log with 5MB rotation
         let logPath = "\(home)/.knotes/backend.log"
+        if fileManager.fileExists(atPath: logPath) {
+            if let attrs = try? fileManager.attributesOfItem(atPath: logPath),
+               let size = attrs[.size] as? UInt64, size > 5 * 1024 * 1024 {
+                let backupLog = "\(home)/.knotes/backend.log.1"
+                try? fileManager.removeItem(atPath: backupLog)
+                try? fileManager.moveItem(atPath: logPath, toPath: backupLog)
+            }
+        }
         if !fileManager.fileExists(atPath: logPath) {
             fileManager.createFile(atPath: logPath, contents: nil)
         }

@@ -50,17 +50,19 @@ for n in notes:
             echo "Error: Search query required. E.g.: knotes search 'Meeting'"
             exit 1
         fi
-        curl -s "$BASE_URL/notes?query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$query'))")" | python3 -c "
+        encoded_query=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$query")
+        curl -s "$BASE_URL/notes?query=$encoded_query" | python3 -c "
 import sys, json
+query = sys.argv[1]
 notes = json.load(sys.stdin)
-print(f'Search results for \"$query\" ({len(notes)} matches):')
+print(f'Search results for \"{query}\" ({len(notes)} matches):')
 for n in notes:
     pin = '📌 ' if n.get('pinned') else '• '
     title = n.get('title') or '(Untitled)'
     nid = n.get('id')
     text = (n.get('text') or '').replace('\n', ' ')[:60]
     print(f'{pin}\033[1m{title}\033[0m: {text} \033[90m(knotes://note/{nid})\033[0m')
-"
+" "$query"
         ;;
     new)
         shift
@@ -98,11 +100,11 @@ for n in notes:
         fi
 
         payload=$(python3 -c "
-import json
-title = '$title'
-content = '$content'
-is_list = '$is_list' == 'true'
-tag = '$tag'
+import sys, json
+title = sys.argv[1]
+content = sys.argv[2]
+is_list = (sys.argv[3] == 'true')
+tag = sys.argv[4]
 
 items = []
 if is_list:
@@ -116,7 +118,7 @@ data = {
     'labels': [tag] if tag else []
 }
 print(json.dumps(data))
-")
+" "$title" "$content" "$is_list" "$tag")
 
         res=$(curl -s -X POST "$BASE_URL/notes" -H "Content-Type: application/json" -d "$payload")
         echo "$res" | python3 -c "

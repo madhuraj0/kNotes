@@ -6,6 +6,7 @@ public struct NewLabelSheetView: View {
 
     @State private var labelName: String = ""
     @State private var isSubmitting: Bool = false
+    @FocusState private var isFieldFocused: Bool
 
     public init(store: NotesStore) {
         self.store = store
@@ -26,6 +27,7 @@ public struct NewLabelSheetView: View {
 
                 TextField("e.g. Travel, Ideas, Receipts", text: $labelName)
                     .textFieldStyle(.roundedBorder)
+                    .focused($isFieldFocused)
                     .onSubmit {
                         submit()
                     }
@@ -37,6 +39,7 @@ public struct NewLabelSheetView: View {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
+                .focusEffectDisabled()
 
                 Button("Create") {
                     submit()
@@ -48,6 +51,11 @@ public struct NewLabelSheetView: View {
         }
         .padding(20)
         .frame(width: 320)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isFieldFocused = true
+            }
+        }
     }
 
     private func submit() {
