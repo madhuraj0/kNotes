@@ -22,7 +22,7 @@ public struct NotesListView: View {
                     Text(currentSectionTitle)
                         .font(.system(size: 20, weight: .bold))
 
-                    Text("\(store.notes.count) Notes")
+                    Text("\(store.notes.count) \(store.notes.count == 1 ? "Note" : "Notes")")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.secondary)
                 }
@@ -31,29 +31,62 @@ public struct NotesListView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
+
+            // Integrated Liquid Glass Search Bar
+            LiquidGlassSearchBar(store: store, text: $store.searchQuery)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
 
             Divider()
                 .opacity(0.6)
 
             // Notes list or Empty state
             if store.notes.isEmpty {
-                VStack(spacing: 12) {
-                    Spacer()
-                    Image(systemName: emptyStateIcon)
-                        .font(.system(size: 38))
-                        .foregroundColor(.secondary.opacity(0.4))
-                    Text(emptyStateText)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                    Button("Create Note") {
-                        store.createNote(isList: false)
+                if !store.searchQuery.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 34))
+                            .foregroundColor(.secondary.opacity(0.4))
+
+                        Text("No Results for \"\(store.searchQuery)\"")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+
+                        Text("Check your spelling or try different search terms.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+
+                        Button("Clear Search") {
+                            store.searchQuery = ""
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+
+                        Spacer()
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    Spacer()
+                    .frame(maxWidth: .infinity)
+                } else {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: emptyStateIcon)
+                            .font(.system(size: 38))
+                            .foregroundColor(.secondary.opacity(0.4))
+                        Text(emptyStateText)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Button("Create Note") {
+                            store.createNote(isList: false)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {

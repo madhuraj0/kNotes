@@ -1,29 +1,47 @@
 import SwiftUI
 
 public struct LiquidGlassSearchBar: View {
-    @EnvironmentObject private var store: NotesStore
+    @ObservedObject var store: NotesStore
     @Binding var text: String
     var placeholder: String = "Search all notes..."
     @FocusState private var isSearchFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
-    public init(text: Binding<String>, placeholder: String = "Search all notes...") {
+    public init(store: NotesStore, text: Binding<String>, placeholder: String = "Search all notes...") {
+        self.store = store
         self._text = text
         self.placeholder = placeholder
     }
 
     public var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 7) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(isSearchFocused ? .primary : .secondary)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(.system(size: 12.5))
                 .focused($isSearchFocused)
                 .onExitCommand {
-                    text = ""
-                    isSearchFocused = false
+                    if !text.isEmpty {
+                        text = ""
+                    } else {
+                        isSearchFocused = false
+                    }
+                }
+                .onSubmit {
+                    if store.selectedNote != nil {
+                        isSearchFocused = false
+                        store.shouldFocusTitle = true
+                    }
+                }
+                .onKeyPress(.downArrow) {
+                    if !store.notes.isEmpty {
+                        isSearchFocused = false
+                        return .handled
+                    }
+                    return .ignored
                 }
                 .onChange(of: store.shouldFocusSearch) { _, shouldFocus in
                     if shouldFocus {
@@ -37,25 +55,31 @@ public struct LiquidGlassSearchBar: View {
             if !text.isEmpty {
                 Button {
                     text = ""
-                    isSearchFocused = false
+                    isSearchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
                 .focusEffectDisabled()
                 .focusable(false)
+                .help("Clear Search")
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .frame(width: 220)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(isSearchFocused ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.08), lineWidth: isSearchFocused ? 1.2 : 0.8)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(
+                    isSearchFocused
+                        ? Color.accentColor.opacity(0.7)
+                        : Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08),
+                    lineWidth: isSearchFocused ? 1.2 : 0.6
+                )
         )
-        .shadow(color: Color.black.opacity(0.03), radius: 1, x: 0, y: 1)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.10 : 0.02), radius: 2, x: 0, y: 1)
     }
 }

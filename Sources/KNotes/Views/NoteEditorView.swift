@@ -223,25 +223,45 @@ public struct NoteEditorView: View {
                 }
             } else {
                 VStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 72, height: 72)
-                            .overlay(
-                                Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
-                            )
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 30))
-                            .foregroundColor(.secondary.opacity(0.6))
+                    if !store.searchQuery.isEmpty {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 72, height: 72)
+                                .overlay(
+                                    Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
+                                )
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 28))
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        Text("No Matching Notes")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("No notes match \"\(store.searchQuery)\"")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    } else {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 72, height: 72)
+                                .overlay(
+                                    Circle().stroke(Color.primary.opacity(0.08), lineWidth: 0.8)
+                                )
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 30))
+                                .foregroundColor(.secondary.opacity(0.6))
+                        }
+                        Text("No Note Selected")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Button("New Note") {
+                            store.createNote(isList: false)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
                     }
-                    Text("No Note Selected")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.secondary)
-                    Button("New Note") {
-                        store.createNote(isList: false)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(.ultraThinMaterial)
@@ -425,9 +445,6 @@ public struct NoteEditorView: View {
                 .help(note.trashed ? "Delete Note Permanently (⌘⌫)" : "Move Note to Trash (⌘⌫)")
                 .accessibilityLabel(note.trashed ? "Delete Note Permanently" : "Move Note to Trash")
             }
-
-            // Continuously Expanded Liquid Glass Search Bar
-            LiquidGlassSearchBar(text: $store.searchQuery)
         }
     }
 }

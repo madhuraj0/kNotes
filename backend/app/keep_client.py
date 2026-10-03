@@ -588,17 +588,27 @@ class KeepManager:
                     if label.lower() not in node_label_names:
                         continue
 
-                # 3. Query search (case-insensitive across title, text, and list items)
-                if query:
-                    q = query.lower()
-                    title_match = q in (n.title or "").lower()
-                    text_match = q in (n.text or "").lower()
-                    item_match = False
-                    if isinstance(n, KeepList):
-                        item_match = any(q in (it.text or "").lower() for it in n.items)
-                    label_match = any(q in lbl.name.lower() for lbl in n.labels.all())
+                # 3. Query search (case-insensitive multi-term search across title, text, items, and labels)
+                if query and query.strip():
+                    terms = query.strip().lower().split()
+                    title_lower = (n.title or "").lower()
+                    text_lower = (n.text or "").lower()
+                    items_lower = (
+                        [(it.text or "").lower() for it in n.items]
+                        if isinstance(n, KeepList)
+                        else []
+                    )
+                    labels_lower = [lbl.name.lower() for lbl in n.labels.all()]
 
-                    if not (title_match or text_match or item_match or label_match):
+                    def term_matches(term: str) -> bool:
+                        return (
+                            term in title_lower
+                            or term in text_lower
+                            or any(term in item for item in items_lower)
+                            or any(term in label for label in labels_lower)
+                        )
+
+                    if not all(term_matches(t) for t in terms):
                         continue
 
                 filtered.append(n)

@@ -43,12 +43,25 @@ public final class NotesStore: ObservableObject {
 
     private var saveDebounceTask: Task<Void, Never>?
     private var searchDebounceTask: Task<Void, Never>?
+    private var preSearchSelectedNoteId: String? = nil
     private var cancellables = Set<AnyCancellable>()
 
     public init() {
         $searchQuery
             .dropFirst()
-            .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .sink { [weak self] newQuery in
+                guard let self = self else { return }
+                if !newQuery.isEmpty && self.preSearchSelectedNoteId == nil {
+                    self.preSearchSelectedNoteId = self.selectedNoteId
+                }
+            }
+            .store(in: &cancellables)
+
+        $searchQuery
+            .dropFirst()
+            .removeDuplicates()
+            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 Task {
                     await self?.fetchNotes()
@@ -130,13 +143,14 @@ public final class NotesStore: ObservableObject {
             }
             SpotlightIndexer.shared.indexNotesIfChanged(fetched)
 
-            // Keep selected note or select first
-            if let selId = selectedNoteId {
-                if !self.notes.contains(where: { $0.id == selId }) {
-                    selectedNoteId = self.notes.first?.id
-                }
+            // Keep selected note, restore pre-search note if search cleared, or select first matching
+            if self.searchQuery.isEmpty, let restoreId = self.preSearchSelectedNoteId, self.notes.contains(where: { $0.id == restoreId }) {
+                self.selectedNoteId = restoreId
+                self.preSearchSelectedNoteId = nil
+            } else if let selId = selectedNoteId, self.notes.contains(where: { $0.id == selId }) {
+                // Keep currently selected note if it's still in the results
             } else {
-                selectedNoteId = self.notes.first?.id
+                self.selectedNoteId = self.notes.first?.id
             }
         } catch {
             print("[NotesStore] fetchNotes error: \(error)")
