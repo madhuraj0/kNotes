@@ -60,4 +60,4 @@ Built on top of **[gkeepapi](https://github.com/kiwiz/gkeepapi)**, the open-sour
 
 ## License
 
-MIT License © 2026
+GNU General Public License v3.0 (GPLv3) © 2026 madhuraj0. See [LICENSE](LICENSE) for details.
