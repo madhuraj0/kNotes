@@ -4,8 +4,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>kNotes — Native macOS Notes for Google Keep</title>
-  <meta name="description" content="Fast, offline-first native macOS notes app for Google Keep. Built with Swift & SwiftUI.">
+  <meta name="description" content="Fast, offline-first native macOS notes app for Google Keep with liquid glass materials, Spotlight search, and menu bar quick capture. Built with Swift & SwiftUI.">
+  <meta name="keywords" content="Google Keep macOS, Google Keep desktop, native Google Keep Mac, kNotes, macOS notes app, Swift notes app, Google Keep offline Mac, Google Keep dark mode Mac">
+  <meta name="author" content="madhuraj0">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://madhuraj0.github.io/kNotes/">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+  <!-- Open Graph / Facebook / LinkedIn / Discord -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://madhuraj0.github.io/kNotes/">
+  <meta property="og:title" content="kNotes — Native macOS Notes for Google Keep">
+  <meta property="og:description" content="Fast, offline-first native macOS notes app for Google Keep with liquid glass materials, Spotlight search, and menu bar quick capture.">
+  <meta property="og:image" content="https://madhuraj0.github.io/kNotes/icon.svg">
+  <meta property="og:image:alt" content="kNotes App Icon">
+  <meta property="og:site_name" content="kNotes">
+
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="kNotes — Native macOS Notes for Google Keep">
+  <meta name="twitter:description" content="Fast, offline-first native macOS notes app for Google Keep with liquid glass materials, Spotlight search, and menu bar quick capture.">
+  <meta name="twitter:image" content="https://madhuraj0.github.io/kNotes/icon.svg">
+
+  <!-- Structured Data (JSON-LD) for Search Engines -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "kNotes",
+    "operatingSystem": "macOS 14.0 or newer",
+    "applicationCategory": "ProductivityApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "Fast, offline-first native macOS notes app for Google Keep. Built with Swift & SwiftUI.",
+    "url": "https://madhuraj0.github.io/kNotes/",
+    "downloadUrl": "https://github.com/madhuraj0/kNotes/releases/latest/download/kNotes.dmg",
+    "softwareVersion": "0.3",
+    "author": {
+      "@type": "Person",
+      "name": "madhuraj0",
+      "url": "https://github.com/madhuraj0"
+    },
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html"
+  }
+  </script>
   <style>
     :root {
       --bg: #0d0f12;
@@ -209,6 +254,18 @@
       white-space: nowrap;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     .shortcuts-section {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -217,8 +274,9 @@
       margin-bottom: 40px;
     }
 
-    .shortcuts-section h3 {
+    .shortcuts-section h2 {
       font-size: 1rem;
+      font-weight: 600;
       margin-bottom: 14px;
     }
 
@@ -299,44 +357,47 @@
       <p class="req">macOS 14.0+ • Apple Silicon & Intel • GNU GPLv3 License</p>
     </section>
 
-    <div class="grid">
-      <div class="card">
-        <h3>⚡ Offline-First</h3>
-        <p>Instant local cache with automatic background sync to Google Keep.</p>
-      </div>
+    <section>
+      <h2 class="sr-only">Features</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>⚡ Offline-First</h3>
+          <p>Instant local cache with automatic background sync to Google Keep.</p>
+        </div>
 
-      <div class="card">
-        <h3>🪟 Native macOS</h3>
-        <p>Built with Swift & SwiftUI with a fluid 3-column layout and liquid glass materials.</p>
-      </div>
+        <div class="card">
+          <h3>🪟 Native macOS</h3>
+          <p>Built with Swift & SwiftUI with a fluid 3-column layout and liquid glass materials.</p>
+        </div>
 
-      <div class="card">
-        <h3>📌 Menu Bar Capture</h3>
-        <p>Quick note taking from anywhere with customizable menu bar visibility.</p>
-      </div>
+        <div class="card">
+          <h3>📌 Menu Bar Capture</h3>
+          <p>Quick note taking from anywhere with customizable menu bar visibility.</p>
+        </div>
 
-      <div class="card">
-        <h3>🔍 Spotlight Search</h3>
-        <p>Search all notes system-wide with ⌘ Space via CoreSpotlight.</p>
-      </div>
+        <div class="card">
+          <h3>🔍 Spotlight Search</h3>
+          <p>Search all notes system-wide with ⌘ Space via CoreSpotlight.</p>
+        </div>
 
-      <div class="card">
-        <h3>📝 Rich Content</h3>
-        <p>Interactive checklists, markdown preview, tags, and note colors.</p>
-      </div>
+        <div class="card">
+          <h3>📝 Rich Content</h3>
+          <p>Interactive checklists, markdown preview, tags, and note colors.</p>
+        </div>
 
-      <div class="card">
-        <h3>🔒 Private & Secure</h3>
-        <p>Direct Google sign-in. Local token storage with zero tracking.</p>
+        <div class="card">
+          <h3>🔒 Private & Secure</h3>
+          <p>Direct Google sign-in. Local token storage with zero tracking.</p>
+        </div>
       </div>
-    </div>
+    </section>
 
     <div class="cli-box">
       <code>git clone https://github.com/madhuraj0/kNotes.git &amp;&amp; cd kNotes &amp;&amp; ./scripts/build_and_install.sh</code>
     </div>
 
     <section class="shortcuts-section">
-      <h3>Keyboard Shortcuts</h3>
+      <h2>Keyboard Shortcuts</h2>
       <div class="shortcuts-grid">
         <div class="shortcut-item"><span>New Note</span><kbd>⌘N</kbd></div>
         <div class="shortcut-item"><span>New Checklist</span><kbd>⇧⌘N</kbd></div>
