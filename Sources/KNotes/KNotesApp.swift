@@ -250,13 +250,35 @@ struct KNotesApp: App {
                 .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
             ]
         ))
-        let linkAttrs: [NSAttributedString.Key: Any] = [
+        let devLinkAttrs: [NSAttributedString.Key: Any] = [
             .link: URL(string: "https://github.com/madhuraj0")!,
             .foregroundColor: NSColor.linkColor,
             .underlineStyle: NSUnderlineStyle.single.rawValue,
             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
         ]
-        credits.append(NSAttributedString(string: "madhuraj0", attributes: linkAttrs))
+        credits.append(NSAttributedString(string: "madhuraj0\n\n", attributes: devLinkAttrs))
+
+        credits.append(NSAttributedString(
+            string: "Powered by ",
+            attributes: [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+            ]
+        ))
+        let gkeepLinkAttrs: [NSAttributedString.Key: Any] = [
+            .link: URL(string: "https://github.com/kiwiz/gkeepapi")!,
+            .foregroundColor: NSColor.linkColor,
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        ]
+        credits.append(NSAttributedString(string: "gkeepapi", attributes: gkeepLinkAttrs))
+        credits.append(NSAttributedString(
+            string: " by Kai (kiwiz)",
+            attributes: [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+            ]
+        ))
 
         let options: [NSApplication.AboutPanelOptionKey: Any] = [
             .applicationName: "kNotes",

@@ -52,6 +52,12 @@ cd kNotes
 
 ---
 
+## Attributions
+
+Built on top of **[gkeepapi](https://github.com/kiwiz/gkeepapi)**, the open-source Google Keep API client created by **Kai (kiwiz)**.
+
+---
+
 ## License
 
 MIT License © 2026
