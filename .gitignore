@@ -57,3 +57,4 @@ local_storage/
 session.json
 state.json
 
+build_release_assets/
