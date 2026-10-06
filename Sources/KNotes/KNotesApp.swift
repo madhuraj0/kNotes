@@ -51,6 +51,12 @@ struct KNotesApp: App {
         .commands {
             SidebarCommands()
 
+            CommandGroup(replacing: .appInfo) {
+                Button("About kNotes") {
+                    showCustomAboutPanel()
+                }
+            }
+
             CommandGroup(replacing: .newItem) {
                 Button("New Note") {
                     store.createNote(isList: false)
@@ -233,5 +239,31 @@ struct KNotesApp: App {
         } else if url.host == "sync" {
             store.syncNow()
         }
+    }
+
+    private func showCustomAboutPanel() {
+        let credits = NSMutableAttributedString()
+        credits.append(NSAttributedString(
+            string: "Developed by ",
+            attributes: [
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+            ]
+        ))
+        let linkAttrs: [NSAttributedString.Key: Any] = [
+            .link: URL(string: "https://github.com/madhuraj0")!,
+            .foregroundColor: NSColor.linkColor,
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        ]
+        credits.append(NSAttributedString(string: "madhuraj0", attributes: linkAttrs))
+
+        let options: [NSApplication.AboutPanelOptionKey: Any] = [
+            .applicationName: "kNotes",
+            .applicationVersion: "0.3",
+            .version: "v0.3",
+            .credits: credits
+        ]
+        NSApp.orderFrontStandardAboutPanel(options: options)
     }
 }

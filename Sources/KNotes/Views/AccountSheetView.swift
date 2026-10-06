@@ -73,6 +73,16 @@ public struct AccountSheetView: View {
 
                 preferencesView
 
+                // Developer & Version Info
+                HStack(spacing: 4) {
+                    Text("kNotes v0.3 • Developed by")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Link("madhuraj0", destination: URL(string: "https://github.com/madhuraj0")!)
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .padding(.top, 2)
+
                 Spacer(minLength: 0)
             }
             .padding(24)
