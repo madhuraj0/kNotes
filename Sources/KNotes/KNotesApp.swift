@@ -15,15 +15,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return false
     }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            for window in sender.windows where !(window is NSPanel) && !window.className.contains("StatusBar") {
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+        return true
+    }
 }
 
 @main
 struct KNotesApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var store = NotesStore.shared
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             MainView()
                 .environmentObject(store)
                 .onOpenURL { url in
@@ -196,10 +206,17 @@ struct KNotesApp: App {
                 .keyboardShortcut("[", modifiers: .command)
                 .disabled(store.notes.isEmpty)
             }
+
+            CommandGroup(after: .toolbar) {
+                Divider()
+                Toggle("Show Menu Bar Icon", isOn: $showMenuBarExtra)
+            }
         }
 
-        MenuBarExtra("kNotes", systemImage: "note.text.badge.plus") {
+        MenuBarExtra(isInserted: $showMenuBarExtra) {
             MenuBarQuickCaptureView()
+        } label: {
+            Image(systemName: "square.and.pencil")
         }
         .menuBarExtraStyle(.window)
     }
@@ -209,8 +226,10 @@ struct KNotesApp: App {
 
         if url.host == "note", let noteId = url.pathComponents.dropFirst().first {
             store.selectedNoteId = noteId
+            NSApp.activate(ignoringOtherApps: true)
         } else if url.host == "new" {
             store.createNote(isList: false)
+            NSApp.activate(ignoringOtherApps: true)
         } else if url.host == "sync" {
             store.syncNow()
         }

@@ -7,11 +7,9 @@ public struct AccountSheetView: View {
 
     @State private var showEmbeddedBrowser: Bool = false
     @State private var isWebLoading: Bool = false
-    @State private var manualEmail: String = ""
-    @State private var manualToken: String = ""
-    @State private var showManualSetup: Bool = false
     @State private var statusMessage: String? = nil
     @State private var isConnecting: Bool = false
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra: Bool = true
 
     public init(store: NotesStore) {
         self.store = store
@@ -26,7 +24,7 @@ public struct AccountSheetView: View {
             }
         }
         .frame(width: showEmbeddedBrowser ? 520 : 480)
-        .frame(minHeight: showEmbeddedBrowser ? 600 : 420, maxHeight: 650)
+        .frame(minHeight: showEmbeddedBrowser ? 600 : 440, maxHeight: 660)
     }
 
     // MARK: - Main Account View
@@ -40,9 +38,9 @@ public struct AccountSheetView: View {
                         .foregroundColor(.yellow)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Google Keep Account")
+                        Text("Settings & Account")
                             .font(.system(size: 18, weight: .bold))
-                        Text("Sync notes bidirectionally with Google Keep in the cloud")
+                        Text("Manage your Google Keep sync and app preferences")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -70,6 +68,10 @@ public struct AccountSheetView: View {
                 } else {
                     signInOptionsView
                 }
+
+                Divider()
+
+                preferencesView
 
                 Spacer(minLength: 0)
             }
@@ -121,43 +123,43 @@ public struct AccountSheetView: View {
                         Text("Last Synced:")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
-                        Spacer()
-                        Text(lastSync)
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                    }
+                    Spacer()
+                    Text(lastSync)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
                 }
             }
-            .padding(12)
-            .background(Color.secondary.opacity(0.08))
-            .cornerRadius(8)
-
-            HStack(spacing: 12) {
-                Button("Sync Now") {
-                    store.syncNow()
-                }
-                .buttonStyle(.bordered)
-
-                Button(role: .destructive) {
-                    Task {
-                        await store.logout()
-                    }
-                } label: {
-                    Text("Sign Out")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.top, 4)
         }
+        .padding(12)
+        .background(Color.secondary.opacity(0.08))
+        .cornerRadius(8)
+
+        HStack(spacing: 12) {
+            Button("Sync Now") {
+                store.syncNow()
+            }
+            .buttonStyle(.bordered)
+
+            Button(role: .destructive) {
+                Task {
+                    await store.logout()
+                }
+            } label: {
+                Text("Sign Out")
+            }
+            .buttonStyle(.bordered)
+
+            Spacer()
+
+            Button("Done") {
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(.top, 4)
     }
+}
 
     // MARK: - Sign In Options
     private var signInOptionsView: some View {
@@ -171,7 +173,7 @@ public struct AccountSheetView: View {
                     Text("Seamless 1-Click Sign In")
                         .font(.system(size: 13, weight: .semibold))
                 }
-                Text("Click the button below to sign in directly with your Google account. KNotes will automatically establish a secure connection and sync your Google Keep notes.")
+                Text("Sign in directly with your Google account. KNotes will automatically establish a secure connection and sync your Google Keep notes bidirectionally.")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .lineSpacing(2)
@@ -212,62 +214,31 @@ public struct AccountSheetView: View {
                 .background(Color.orange.opacity(0.1))
                 .cornerRadius(8)
             }
+        }
+    }
 
-            Divider()
-                .padding(.vertical, 4)
+    // MARK: - Preferences
+    private var preferencesView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("General Preferences")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
 
-            // Collapsible Manual / CLI Options for Advanced Users
-            DisclosureGroup(isExpanded: $showManualSetup) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("If you prefer terminal or have an existing Google Master Token:")
+            Toggle(isOn: $showMenuBarExtra) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Show Menu Bar Icon")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("Quick Capture notes and view recent items directly from the macOS menu bar")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
-
-                    // Run CLI script button
-                    Button {
-                        runCLIScriptInTerminal()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "terminal.fill")
-                                .font(.system(size: 11))
-                            Text("Launch CLI Setup Helper in Terminal")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Google Email")
-                            .font(.system(size: 11, weight: .medium))
-                        TextField("yourname@gmail.com", text: $manualEmail)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Master Token or oauth_token")
-                            .font(.system(size: 11, weight: .medium))
-                        SecureField("oauth2_4/... or oauth2rt_1/...", text: $manualToken)
-                            .textFieldStyle(.roundedBorder)
-                    }
-
-                    HStack {
-                        Spacer()
-                        Button("Connect with Token") {
-                            connectWithManualToken()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(manualToken.trimmingCharacters(in: .whitespaces).isEmpty || isConnecting)
-                    }
                 }
-                .padding(.top, 6)
-            } label: {
-                Text("Advanced: Manual Setup & CLI Helper")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
             }
+            .toggleStyle(.switch)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(Color.secondary.opacity(0.06))
+        .cornerRadius(10)
     }
 
     // MARK: - Embedded Browser Sign In View
@@ -331,7 +302,7 @@ public struct AccountSheetView: View {
     // MARK: - Actions
     private func handleCapturedToken(token: String, email: String?) {
         isConnecting = true
-        let resolvedEmail = email ?? manualEmail
+        let resolvedEmail = email ?? ""
 
         Task {
             let (success, message) = await store.login(
@@ -346,45 +317,6 @@ public struct AccountSheetView: View {
                 statusMessage = message
                 showEmbeddedBrowser = false
             }
-        }
-    }
-
-    private func connectWithManualToken() {
-        let cleanEmail = manualEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanToken = manualToken.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanToken.isEmpty else { return }
-
-        isConnecting = true
-        statusMessage = nil
-
-        Task {
-            let (success, message) = await store.login(
-                email: cleanEmail,
-                masterToken: cleanToken
-            )
-            isConnecting = false
-            if success {
-                dismiss()
-            } else {
-                statusMessage = message
-            }
-        }
-    }
-
-    private func runCLIScriptInTerminal() {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let installedScript = "\(home)/.knotes/bin/get_master_token.py"
-        let fallbackScript = "\(FileManager.default.currentDirectoryPath)/scripts/get_master_token.py"
-        let scriptPath = FileManager.default.fileExists(atPath: installedScript) ? installedScript : fallbackScript
-        let appleScript = """
-        tell application "Terminal"
-            activate
-            do script "python3 \\\"\(scriptPath)\\\""
-        end tell
-        """
-        if let scriptObject = NSAppleScript(source: appleScript) {
-            var error: NSDictionary?
-            scriptObject.executeAndReturnError(&error)
         }
     }
 }

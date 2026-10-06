@@ -24,6 +24,7 @@ public final class NotesStore: ObservableObject {
                 selectedFolder = .all
                 selectedLabel = t
             }
+            guard isInitialized, oldValue != sidebarSelection else { return }
             Task {
                 await fetchNotes()
             }
@@ -31,6 +32,7 @@ public final class NotesStore: ObservableObject {
     }
 
     @Published public var isLoading: Bool = false
+    @Published public private(set) var isInitialized: Bool = false
     @Published public var isSyncing: Bool = false
     @Published public var showAccountSheet: Bool = false
     @Published public var showNewLabelSheet: Bool = false
@@ -48,8 +50,8 @@ public final class NotesStore: ObservableObject {
 
     public init() {
         $searchQuery
-            .dropFirst()
             .removeDuplicates()
+            .dropFirst()
             .sink { [weak self] newQuery in
                 guard let self = self else { return }
                 if !newQuery.isEmpty && self.preSearchSelectedNoteId == nil {
@@ -59,12 +61,13 @@ public final class NotesStore: ObservableObject {
             .store(in: &cancellables)
 
         $searchQuery
-            .dropFirst()
             .removeDuplicates()
+            .dropFirst()
             .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
             .sink { [weak self] _ in
+                guard let self = self, self.isInitialized else { return }
                 Task {
-                    await self?.fetchNotes()
+                    await self.fetchNotes()
                 }
             }
             .store(in: &cancellables)
@@ -73,9 +76,10 @@ public final class NotesStore: ObservableObject {
         Timer.publish(every: 40, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
+                guard let self = self, self.isInitialized else { return }
                 Task {
-                    await self?.fetchStatus()
-                    await self?.fetchNotes()
+                    await self.fetchStatus()
+                    await self.fetchNotes()
                 }
             }
             .store(in: &cancellables)
@@ -87,12 +91,38 @@ public final class NotesStore: ObservableObject {
     }
 
     public func initialize() async {
+        guard !isInitialized else { return }
         isLoading = true
-        _ = await ProcessManager.shared.ensureBackendRunning()
+        let backendReady = await ProcessManager.shared.ensureBackendRunning()
+        if !backendReady {
+            isLoading = false
+            self.errorMessage = "Could not start local backend service. Please check your Python installation."
+            return
+        }
+
         await fetchStatus()
         await fetchLabels()
-        await fetchNotes()
+
+        var fetchSuccess = false
+        for attempt in 1...3 {
+            do {
+                try await performFetchNotes()
+                fetchSuccess = true
+                break
+            } catch {
+                print("[NotesStore] Startup fetch attempt \(attempt) failed: \(error)")
+                if attempt < 3 {
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                }
+            }
+        }
+
+        if !fetchSuccess {
+            self.errorMessage = "Failed to load notes. Please check your backend connection."
+        }
+
         isLoading = false
+        isInitialized = true
 
         if selectedNoteId == nil, let first = notes.first {
             selectedNoteId = first.id
@@ -117,44 +147,50 @@ public final class NotesStore: ObservableObject {
 
     public func fetchNotes() async {
         do {
-            let fetched = try await APIClient.shared.fetchNotes(
-                folder: selectedFolder.rawValue,
-                label: selectedLabel,
-                query: searchQuery.isEmpty ? nil : searchQuery
-            )
-
-            // Protect pending autosaves on active note from being overwritten by stale server fetch
-            if let activeId = selectedNoteId,
-               saveDebounceTask != nil,
-               let localIndex = self.notes.firstIndex(where: { $0.id == activeId }) {
-                let localActive = self.notes[localIndex]
-                self.notes = fetched.map { note in
-                    if note.id == activeId {
-                        var merged = note
-                        merged.title = localActive.title
-                        merged.text = localActive.text
-                        merged.items = localActive.items
-                        return merged
-                    }
-                    return note
-                }
-            } else {
-                self.notes = fetched
-            }
-            SpotlightIndexer.shared.indexNotesIfChanged(fetched)
-
-            // Keep selected note, restore pre-search note if search cleared, or select first matching
-            if self.searchQuery.isEmpty, let restoreId = self.preSearchSelectedNoteId, self.notes.contains(where: { $0.id == restoreId }) {
-                self.selectedNoteId = restoreId
-                self.preSearchSelectedNoteId = nil
-            } else if let selId = selectedNoteId, self.notes.contains(where: { $0.id == selId }) {
-                // Keep currently selected note if it's still in the results
-            } else {
-                self.selectedNoteId = self.notes.first?.id
-            }
+            try await performFetchNotes()
         } catch {
             print("[NotesStore] fetchNotes error: \(error)")
-            self.errorMessage = "Failed to load notes: \(error.localizedDescription)"
+            if isInitialized && !isLoading {
+                self.errorMessage = "Failed to load notes: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func performFetchNotes() async throws {
+        let fetched = try await APIClient.shared.fetchNotes(
+            folder: selectedFolder.rawValue,
+            label: selectedLabel,
+            query: searchQuery.isEmpty ? nil : searchQuery
+        )
+
+        // Protect pending autosaves on active note from being overwritten by stale server fetch
+        if let activeId = selectedNoteId,
+           saveDebounceTask != nil,
+           let localIndex = self.notes.firstIndex(where: { $0.id == activeId }) {
+            let localActive = self.notes[localIndex]
+            self.notes = fetched.map { note in
+                if note.id == activeId {
+                    var merged = note
+                    merged.title = localActive.title
+                    merged.text = localActive.text
+                    merged.items = localActive.items
+                    return merged
+                }
+                return note
+            }
+        } else {
+            self.notes = fetched
+        }
+        SpotlightIndexer.shared.indexNotesIfChanged(fetched)
+
+        // Keep selected note, restore pre-search note if search cleared, or select first matching
+        if self.searchQuery.isEmpty, let restoreId = self.preSearchSelectedNoteId, self.notes.contains(where: { $0.id == restoreId }) {
+            self.selectedNoteId = restoreId
+            self.preSearchSelectedNoteId = nil
+        } else if let selId = selectedNoteId, self.notes.contains(where: { $0.id == selId }) {
+            // Keep currently selected note if it's still in the results
+        } else {
+            self.selectedNoteId = self.notes.first?.id
         }
     }
 

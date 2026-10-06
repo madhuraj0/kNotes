@@ -204,7 +204,13 @@ class KeepManager:
                     # If we already have a healthy cache (> 30 nodes), incremental sync is fast and safe
                     if has_local_cache and node_count > 30:
                         state = self.keep.dump()
-                        self.keep.authenticate(email, master_token, state=state, sync=True)
+                        self.keep.authenticate(email, master_token, state=state, sync=False)
+                        self.authenticated = True
+                        self.sync_status = "synced"
+                        self.last_synced = datetime.now(timezone.utc).isoformat()
+                        self._save_state_to_disk()
+                        logger.info("Auto-resumed Google Keep session for user %s (%d notes, offline-first)", email, len(list(self.keep.all())))
+                        self.schedule_bg_sync(delay=2.0)
                     else:
                         # Full sync staged safely into a separate instance first
                         staging_keep = gkeepapi.Keep()
@@ -213,11 +219,11 @@ class KeepManager:
                         if len(staged_nodes) > 0:
                             self._merge_offline_notes(self.keep, staging_keep)
                             self.keep = staging_keep
-                    self.authenticated = True
-                    self.sync_status = "synced"
-                    self.last_synced = datetime.now(timezone.utc).isoformat()
-                    self._save_state_to_disk()
-                    logger.info("Auto-resumed Google Keep session for user %s (%d notes)", email, len(list(self.keep.all())))
+                        self.authenticated = True
+                        self.sync_status = "synced"
+                        self.last_synced = datetime.now(timezone.utc).isoformat()
+                        self._save_state_to_disk()
+                        logger.info("Auto-resumed Google Keep session for user %s (%d notes)", email, len(list(self.keep.all())))
                 except Exception as auth_err:
                     logger.warning("Session resume sync failed (working offline): %s", auth_err)
                     self.authenticated = True
@@ -395,8 +401,8 @@ class KeepManager:
                     except gkeepapi.exception.LoginException as le:
                         if "BadAuthentication" in str(le):
                             return False, (
-                                "Google has discontinued password and App Password authentication for the unofficial Keep API. "
-                                "Please use the 'Google Master Token' method instead (click 'Use Master Token' in KNotes or run scripts/get_master_token.py)."
+                                "Google has discontinued password and App Password authentication. "
+                                "Please sign in using the 'Sign in with Google' button in KNotes."
                             )
                         raise
                 else:

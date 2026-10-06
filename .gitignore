@@ -48,3 +48,12 @@ local_storage/
 *.iconset/
 *.dmg
 *.zip
+
+# Security / Local Credentials
+.env
+*.env
+*.pem
+*.key
+session.json
+state.json
+

@@ -3,6 +3,8 @@ import AppKit
 
 public struct MenuBarQuickCaptureView: View {
     @ObservedObject var store = NotesStore.shared
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openWindow) private var openWindow
 
     @State private var title: String = ""
     @State private var text: String = ""
@@ -10,6 +12,7 @@ public struct MenuBarQuickCaptureView: View {
     @State private var selectedColor: String = "White"
     @State private var selectedTag: String? = "Quick Notes"
     @State private var isSaved: Bool = false
+    @State private var hoveredNoteId: String? = nil
 
     public init() {}
 
@@ -18,8 +21,8 @@ public struct MenuBarQuickCaptureView: View {
             // Header
             HStack {
                 HStack(spacing: 6) {
-                    Image(systemName: "note.text.badge.plus")
-                        .font(.system(size: 14, weight: .semibold))
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.accentColor)
                     Text("Quick Capture")
                         .font(.system(size: 13, weight: .bold))
@@ -29,18 +32,18 @@ public struct MenuBarQuickCaptureView: View {
 
                 // Open full app button
                 Button {
-                    NSApp.activate(ignoringOtherApps: true)
-                    if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-                        window.makeKeyAndOrderFront(nil)
-                    }
+                    openMainWindow()
                 } label: {
-                    HStack(spacing: 3) {
+                    HStack(spacing: 4) {
                         Text("Open KNotes")
                             .font(.system(size: 10, weight: .medium))
                         Image(systemName: "arrow.up.forward.app")
                             .font(.system(size: 9))
                     }
                     .foregroundColor(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
                 .help("Open main KNotes window")
@@ -141,43 +144,78 @@ public struct MenuBarQuickCaptureView: View {
                 .padding(.vertical, 2)
 
             // Recent Notes Section
-            VStack(alignment: .leading, spacing: 4) {
-                Text("RECENT NOTES")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(.secondary)
+            if !store.notes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("RECENT NOTES")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.secondary)
 
-                ForEach(store.notes.prefix(3)) { note in
-                    Button {
-                        store.selectedNoteId = note.id
-                        NSApp.activate(ignoringOtherApps: true)
-                        if let window = NSApp.windows.first(where: { $0.canBecomeMain }) {
-                            window.makeKeyAndOrderFront(nil)
+                    ForEach(store.notes.prefix(4)) { note in
+                        let isHovered = hoveredNoteId == note.id
+                        Button {
+                            openMainWindow(noteId: note.id)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Note.swatchColor(for: note.color))
+                                    .frame(width: 7, height: 7)
+
+                                Text(note.displayTitle)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.primary)
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                Text(note.formattedDate)
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(isHovered ? Color.primary.opacity(0.06) : Color.clear, in: RoundedRectangle(cornerRadius: 5))
+                            .contentShape(Rectangle())
                         }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Note.swatchColor(for: note.color))
-                                .frame(width: 6, height: 6)
-
-                            Text(note.displayTitle)
-                                .font(.system(size: 11, weight: .medium))
-                                .lineLimit(1)
-
-                            Spacer()
-
-                            Text(note.formattedDate)
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary)
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            hoveredNoteId = hovering ? note.id : nil
                         }
-                        .padding(.vertical, 2)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .frame(width: 300)
+    }
+
+    private func openMainWindow(noteId: String? = nil) {
+        if let noteId = noteId {
+            store.selectedNoteId = noteId
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+
+        let contentWindows = NSApp.windows.filter { window in
+            !(window is NSPanel) &&
+            !window.className.contains("StatusBar") &&
+            window.canBecomeMain
+        }
+
+        if let visibleWindow = contentWindows.first(where: { $0.isVisible }) {
+            if visibleWindow.isMiniaturized {
+                visibleWindow.deminiaturize(nil)
+            }
+            visibleWindow.makeKeyAndOrderFront(nil)
+            visibleWindow.orderFrontRegardless()
+        } else if let closedWindow = contentWindows.first {
+            closedWindow.makeKeyAndOrderFront(nil)
+            closedWindow.orderFrontRegardless()
+        } else {
+            // Only open a new window scene if no content window exists
+            openWindow(id: "main")
+        }
+
+        dismiss()
     }
 
     private func saveQuickNote() {
@@ -214,7 +252,7 @@ public struct MenuBarQuickCaptureView: View {
                 withAnimation {
                     isSaved = true
                 }
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                try? await Task.sleep(nanoseconds: 700_000_000)
                 title = ""
                 text = ""
                 withAnimation {

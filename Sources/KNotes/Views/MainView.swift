@@ -33,10 +33,10 @@ public struct MainView: View {
             .disabled(store.selectedNote == nil)
         }
         .task {
-            await store.initialize()
             if !savedSidebarFolder.isEmpty, let folder = Folder(rawValue: savedSidebarFolder) {
                 store.sidebarSelection = .folder(folder)
             }
+            await store.initialize()
             if !savedSelectedNoteId.isEmpty && store.notes.contains(where: { $0.id == savedSelectedNoteId }) {
                 store.selectedNoteId = savedSelectedNoteId
             }

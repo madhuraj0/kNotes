@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kNotes — Native macOS Notes for Google Keep</title>
+  <meta name="description" content="Fast, offline-first native macOS notes app for Google Keep. Built with Swift & SwiftUI.">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <style>
+    :root {
+      --bg: #0c0e12;
+      --card-bg: rgba(255, 255, 255, 0.04);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-hover: rgba(255, 255, 255, 0.07);
+      --text: #f0f3f6;
+      --text-muted: #8b949e;
+      --accent: #f5ba13;
+      --accent-hover: #e5ab0a;
+      --accent-glow: rgba(245, 186, 19, 0.25);
+      --code-bg: rgba(0, 0, 0, 0.45);
+      --nav-bg: rgba(12, 14, 18, 0.8);
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8f9fa;
+        --card-bg: rgba(255, 255, 255, 0.85);
+        --card-border: rgba(0, 0, 0, 0.08);
+        --card-hover: rgba(255, 255, 255, 1);
+        --text: #1a1e24;
+        --text-muted: #57606a;
+        --accent: #d99b00;
+        --accent-hover: #c48b00;
+        --accent-glow: rgba(217, 155, 0, 0.2);
+        --code-bg: rgba(0, 0, 0, 0.05);
+        --nav-bg: rgba(248, 249, 250, 0.85);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Ambient top glow */
+    .glow {
+      position: absolute;
+      top: -150px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background-color: var(--nav-bg);
+      border-bottom: 1px solid var(--card-border);
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 1.15rem;
+    }
+
+    .brand img {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .btn-nav {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      border-radius: 8px;
+      color: var(--text) !important;
+      font-size: 0.85rem !important;
+    }
+
+    .btn-nav:hover {
+      background: var(--card-hover);
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 60px 24px 100px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 40px 0 60px;
+    }
+
+    .hero-icon {
+      width: 100px;
+      height: 100px;
+      border-radius: 22px;
+      box-shadow: 0 12px 32px var(--accent-glow), 0 4px 12px rgba(0, 0, 0, 0.2);
+      margin-bottom: 24px;
+      transition: transform 0.2s ease;
+    }
+
+    .hero-icon:hover {
+      transform: scale(1.03);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 32px;
+      line-height: 1.5;
+    }
+
+    .cta-group {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #000;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 12px 24px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-weight: 500;
+      font-size: 0.95rem;
+      padding: 12px 22px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .requirements {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    /* Features Grid */
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .section-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 36px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+      margin-bottom: 60px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    }
+
+    .card:hover {
+      background: var(--card-hover);
+      border-color: rgba(255, 255, 255, 0.14);
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .card h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Terminal / CLI Box */
+    .cli-box {
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 60px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      color: var(--text);
+      overflow-x: auto;
+    }
+
+    .cli-box code {
+      white-space: nowrap;
+    }
+
+    /* Shortcuts Table */
+    .shortcuts-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 60px;
+    }
+
+    .shortcuts-section h3 {
+      font-size: 1.15rem;
+      margin-bottom: 16px;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .shortcut-name {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    kbd {
+      font-family: var(--mono);
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--text-muted);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    footer a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 2.2rem; }
+      .subtitle { font-size: 1.05rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+
+  <header>
+    <div class="nav-container">
+      <a href="#" class="brand">
+        <img src="icon.svg" alt="kNotes Icon">
+        <span>kNotes</span>
+      </a>
+      <div class="nav-links">
+        <a href="https://github.com/madhuraj0/kNotes" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/madhuraj0/kNotes/releases" class="btn-nav">Releases</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <img src="icon.svg" alt="kNotes App Icon" class="hero-icon">
+      <div>
+        <span class="badge">macOS Native App</span>
+      </div>
+      <h1>Google Keep,<br>natively on your Mac.</h1>
+      <p class="subtitle">Fast, offline-first notes with liquid glass materials, system Spotlight search, and menu bar quick capture. Built with Swift & SwiftUI.</p>
+      
+      <div class="cta-group">
+        <a href="https://github.com/madhuraj0/kNotes/releases/latest/download/kNotes.dmg" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download for Mac (.dmg)
+        </a>
+        <a href="https://github.com/madhuraj0/kNotes" class="btn-secondary" target="_blank" rel="noopener">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+          </svg>
+          View Source Code
+        </a>
+      </div>
+      <p class="requirements">Requires macOS 14.0 or newer • Apple Silicon & Intel</p>
+    </section>
+
+    <section>
+      <h2 class="section-title">Designed for macOS speed</h2>
+      <p class="section-subtitle">Zero bloat, instant launch times, and full offline fidelity.</p>
+
+      <div class="grid">
+        <div class="card">
+          <span class="card-icon">⚡</span>
+          <h3>Offline-First Architecture</h3>
+          <p>Instant SQLite local cache. Read, write, and search your notes with zero network latency. Changes synchronize transparently in the background.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">🪟</span>
+          <h3>Native Liquid Glass UI</h3>
+          <p>Built purely in SwiftUI with a 3-column split layout, transluscent sidebars, fluid animations, and automatic system dark mode matching.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">📌</span>
+          <h3>Menu Bar Quick Capture</h3>
+          <p>Draft quick thoughts from any application using the menu bar icon. Easily toggle the icon on or off in app preferences anytime.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">🔍</span>
+          <h3>CoreSpotlight Integration</h3>
+          <p>Press ⌘ Space to search notes from anywhere in macOS. Jump directly to matching notes with instant deep-linking.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">📝</span>
+          <h3>Markdown & Checklists</h3>
+          <p>Toggle interactive checklist items with drag-to-reorder, format markdown previews, organize tags, and apply note colors.</p>
+        </div>
+
+        <div class="card">
+          <span class="card-icon">🔒</span>
+          <h3>Private & Independent</h3>
+          <p>Authentication happens directly via Google. Notes are stored strictly on your device. Zero telemetry, trackers, or middleman servers.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="cli-box">
+      <code>git clone https://github.com/madhuraj0/kNotes.git && cd kNotes && ./scripts/build_and_install.sh</code>
+    </div>
+
+    <section class="shortcuts-section">
+      <h3>Keyboard-First Workflow</h3>
+      <div class="shortcuts-grid">
+        <div class="shortcut-item">
+          <span class="shortcut-name">New Note</span>
+          <kbd>⌘N</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">New Checklist</span>
+          <kbd>⇧⌘N</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Search Notes</span>
+          <kbd>⌘F</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Sync with Keep</span>
+          <kbd>⌘S</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Markdown Preview</span>
+          <kbd>⌘E</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Pin Note</span>
+          <kbd>⌥⌘P</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Archive Note</span>
+          <kbd>⇧⌘A</kbd>
+        </div>
+        <div class="shortcut-item">
+          <span class="shortcut-name">Preferences</span>
+          <kbd>⌘,</kbd>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>kNotes is open source software released under the <a href="https://github.com/madhuraj0/kNotes/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.</p>
+    <p style="margin-top: 6px;">Not affiliated with or endorsed by Google LLC.</p>
+  </footer>
+</body>
+</html>

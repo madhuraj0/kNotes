@@ -29,9 +29,9 @@ public final class ProcessManager {
         print("[KNotes] Starting local backend daemon...")
         startBackend()
 
-        // Wait up to 6 seconds for backend to become responsive
-        for _ in 0..<12 {
-            try? await Task.sleep(nanoseconds: 500_000_000)
+        // Wait up to ~10.5 seconds for backend to become responsive
+        for _ in 0..<30 {
+            try? await Task.sleep(nanoseconds: 350_000_000)
             if await isBackendResponsive() {
                 print("[KNotes] Backend daemon is ready.")
                 return true

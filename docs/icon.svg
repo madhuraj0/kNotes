@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Crisp depth shadow behind white pencil for pop -->
+    <filter id="whitePencilShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#a66e00" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#734b00" flood-opacity="0.30"/>
+    </filter>
+
+    <!-- Saturated Plain Diffused Yellow Glass Base (Full Bleed edge-to-edge) -->
+    <linearGradient id="saturatedYellowBase" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#FFD000"/>
+      <stop offset="35%" stop-color="#FFC200"/>
+      <stop offset="70%" stop-color="#FFB300"/>
+      <stop offset="100%" stop-color="#FFA000"/>
+    </linearGradient>
+
+    <!-- Frosted Translucent Glass Texture Layer -->
+    <linearGradient id="frostedGlassSheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.22"/>
+    </linearGradient>
+
+    <!-- Liquid Surface Reflection Wave / Lens Sheen -->
+    <linearGradient id="lensSheen" x1="18%" y1="12%" x2="78%" y2="72%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.60"/>
+      <stop offset="35%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <!-- Bottom Caustic Prism Glow -->
+    <linearGradient id="bottomCaustic" x1="50%" y1="100%" x2="50%" y2="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. FULL BLEED LIQUID GLASS BASE (Edge to edge, 100% opaque, ZERO white container/borders) -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#saturatedYellowBase)"/>
+
+  <!-- Frosted Glass Diffusion Overlay -->
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#frostedGlassSheen)"/>
+
+  <!-- Liquid Surface Reflection Wave -->
+  <path d="M 0,380 C 0,220 220,0 380,0 L 900,0 C 640,260 380,540 0,900 Z" fill="url(#lensSheen)"/>
+
+  <!-- Bottom Internal Glass Caustic Reflection -->
+  <ellipse cx="512" cy="980" rx="460" ry="140" fill="url(#bottomCaustic)"/>
+
+  <!-- 2. THE PENCIL ICON (Pure Crisp White in Safe Zone) -->
+  <g filter="url(#whitePencilShadow)">
+    <path d="M 353.11,730.29 L 683.06,400.38 L 624.12,341.39 L 294.17,671.25 L 265.80,741.34 C 262.00,751.04 272.07,761.07 281.48,757.70 Z M 712.36,371.66 L 744.89,339.39 C 761.14,323.19 762.00,305.16 746.96,290.27 L 734.78,277.99 C 720.04,262.93 701.80,264.46 685.64,280.29 L 652.99,312.41 Z"
+          fill="#FFFFFF"/>
+  </g>
+</svg>

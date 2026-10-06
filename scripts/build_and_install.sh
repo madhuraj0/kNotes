@@ -58,8 +58,6 @@ cp backend/run_backend.sh ~/.knotes/backend/ 2>/dev/null || true
 chmod +x ~/.knotes/backend/run_backend.sh 2>/dev/null || true
 cp bin/knotes ~/.knotes/bin/knotes
 chmod +x ~/.knotes/bin/knotes
-cp scripts/get_master_token.py ~/.knotes/bin/get_master_token.py
-chmod +x ~/.knotes/bin/get_master_token.py
 if [ -d "$PROJECT_DIR/.venv" ]; then
     ln -sfn "$PROJECT_DIR/.venv" ~/.knotes/venv
 fi
