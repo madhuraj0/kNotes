@@ -18,14 +18,14 @@ Fast, offline-first native macOS notes app for Google Keep. Built with Swift & S
 ## Installation
 
 ### Pre-built DMG
-Download the latest disk image from [Releases](https://github.com/madhuraj0/kNotes/releases) and drag **kNotes** to `/Applications`.
+Download the latest disk image from [Releases](https://github.com/madhuraj0/knotes/releases) and drag **kNotes** to `/Applications`.
 
 ### Build from Source
 Requirements: macOS 14.0+, Swift, Python 3.10+.
 
 ```bash
-git clone https://github.com/madhuraj0/kNotes.git
-cd kNotes
+git clone https://github.com/madhuraj0/knotes.git
+cd knotes
 ./scripts/build_and_install.sh
 ```
 

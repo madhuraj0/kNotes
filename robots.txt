@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://madhuraj0.github.io/kNotes/sitemap.xml
+Sitemap: https://madhuraj0.github.io/knotes/sitemap.xml
