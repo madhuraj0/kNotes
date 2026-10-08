@@ -58,8 +58,17 @@ cp backend/run_backend.sh ~/.knotes/backend/ 2>/dev/null || true
 chmod +x ~/.knotes/backend/run_backend.sh 2>/dev/null || true
 cp bin/knotes ~/.knotes/bin/knotes
 chmod +x ~/.knotes/bin/knotes
-if [ -d "$PROJECT_DIR/.venv" ]; then
-    ln -sfn "$PROJECT_DIR/.venv" ~/.knotes/venv
+# If ~/.knotes/venv is a legacy symlink (e.g. pointing to Downloads), remove it
+if [ -L "$HOME/.knotes/venv" ]; then
+    echo "  Removing legacy symlinked virtual environment at ~/.knotes/venv..."
+    rm -f "$HOME/.knotes/venv"
+fi
+
+# Ensure ~/.knotes/venv is an isolated, standalone virtual environment
+if [ ! -f "$HOME/.knotes/venv/bin/python3" ]; then
+    echo "  Creating isolated ~/.knotes/venv virtual environment..."
+    python3 -m venv "$HOME/.knotes/venv"
+    "$HOME/.knotes/venv/bin/pip" install --quiet --disable-pip-version-check -r backend/requirements.txt
 fi
 chmod 700 ~/.knotes
 

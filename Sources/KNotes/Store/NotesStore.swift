@@ -96,7 +96,7 @@ public final class NotesStore: ObservableObject {
         let backendReady = await ProcessManager.shared.ensureBackendRunning()
         if !backendReady {
             isLoading = false
-            self.errorMessage = "Could not start local backend service. Please check your Python installation."
+            self.errorMessage = ProcessManager.shared.lastError ?? "Could not start local backend service. Please check your Python installation."
             return
         }
 

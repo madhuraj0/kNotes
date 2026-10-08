@@ -6,17 +6,19 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(backend_dir))
 
-# Automatically resolve and inject virtualenv site-packages
 home = Path.home()
-candidate_site_packages = [
-    home / ".knotes" / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
-    backend_dir.parent / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
-    backend_dir / ".venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages",
-]
+knotes_dir = home / ".knotes"
+knotes_dir.mkdir(parents=True, exist_ok=True)
+try:
+    os.chdir(str(knotes_dir))
+except Exception:
+    pass
 
-for sp in candidate_site_packages:
-    if sp.exists() and str(sp) not in sys.path:
-        sys.path.insert(0, str(sp))
+# Automatically resolve and inject isolated virtualenv site-packages if running with system python
+if sys.prefix == sys.base_prefix:
+    venv_sp = knotes_dir / "venv" / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+    if venv_sp.exists() and str(venv_sp) not in sys.path:
+        sys.path.insert(0, str(venv_sp))
 
 import uvicorn
 from app import config
